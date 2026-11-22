@@ -1,0 +1,39 @@
+# Environment files — these hold database credentials and camera passwords.
+# Commit .env.example instead.
+.env
+.env.local
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Face data and media — never commit enrolment photos, snapshots or clips.
+media/
+models/
+*.onnx
+*.pt
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log
+logs/
