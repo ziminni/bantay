@@ -1,7 +1,24 @@
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { LoadingState } from '@/components/ui/LoadingState'
+import { ToastProvider } from '@/components/ui/Toast'
+import { NotFoundPage } from '@/features/not-found/NotFoundPage'
+
+// Each page is loaded only when it is first visited, so the first load stays small.
+const router = createBrowserRouter([
+  {
+    element: <AppLayout />,
+    hydrateFallbackElement: <LoadingState />,
+    children: [
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+])
+
 export default function App() {
   return (
-    <main className="p-8">
-      <h1 className="text-2xl font-semibold">Bantay</h1>
-    </main>
+    <ToastProvider>
+      <RouterProvider router={router} />
+    </ToastProvider>
   )
 }
