@@ -1,0 +1,43 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: bantay-db
+    environment:
+      POSTGRES_USER: bantay
+      POSTGRES_PASSWORD: bantay
+      POSTGRES_DB: bantay
+    ports:
+      # Host port is configurable: something else may already hold 5432.
+      - "${BANTAY_DB_PORT:-5432}:5432"
+    volumes:
+      - bantay-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bantay -d bantay"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: bantay-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://bantay:bantay@db:5432/bantay
+      ENVIRONMENT: production
+      DEBUG: "false"
+      RECOGNITION_ENGINE: auto
+      MEDIA_ROOT: /app/media
+    ports:
+      - "8000:8000"
+    volumes:
+      - bantay-media:/app/media
+    restart: unless-stopped
+    profiles: ["full"]
+
+volumes:
+  bantay-db-data:
+  bantay-media:
