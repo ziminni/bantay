@@ -25,5 +25,9 @@ export const NAVIGATION: NavGroup[] = [
       { to: '/users', label: 'Users', description: 'Students, faculty and staff' },
       { to: '/labs', label: 'Labs', description: 'Laboratories and cameras' },
     ],
-  }
+  },
+  {
+    label: 'Tools',
+    items: [{ to: '/tools/recognition', label: 'Test Recognition', description: 'Check matching on a photo' }],
+  },
 ]

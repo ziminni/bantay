@@ -18,6 +18,10 @@ const router = createBrowserRouter([
       { path: 'users/:id', lazy: () => import('@/features/users/UserDetailPage').then((m) => ({ Component: m.UserDetailPage })) },
       { path: 'labs', lazy: () => import('@/features/labs/LabsPage').then((m) => ({ Component: m.LabsPage })) },
       { path: 'labs/:id', lazy: () => import('@/features/labs/LabDetailPage').then((m) => ({ Component: m.LabDetailPage })) },
+      {
+        path: 'tools/recognition',
+        lazy: () => import('@/features/recognition/RecognitionTestPage').then((m) => ({ Component: m.RecognitionTestPage })),
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
