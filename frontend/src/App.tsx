@@ -11,6 +11,7 @@ const router = createBrowserRouter([
     hydrateFallbackElement: <LoadingState />,
     children: [
       { index: true, lazy: () => import('@/features/dashboard/DashboardPage').then((m) => ({ Component: m.DashboardPage })) },
+      { path: 'live', lazy: () => import('@/features/live-view/LiveViewPage').then((m) => ({ Component: m.LiveViewPage })) },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
