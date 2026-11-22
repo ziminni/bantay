@@ -12,6 +12,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, lazy: () => import('@/features/dashboard/DashboardPage').then((m) => ({ Component: m.DashboardPage })) },
       { path: 'live', lazy: () => import('@/features/live-view/LiveViewPage').then((m) => ({ Component: m.LiveViewPage })) },
+      { path: 'enroll', lazy: () => import('@/features/enroll/EnrollPage').then((m) => ({ Component: m.EnrollPage })) },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
