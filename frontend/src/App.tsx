@@ -10,6 +10,7 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     hydrateFallbackElement: <LoadingState />,
     children: [
+      { index: true, lazy: () => import('@/features/dashboard/DashboardPage').then((m) => ({ Component: m.DashboardPage })) },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
