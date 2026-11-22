@@ -1,0 +1,71 @@
+import { useState } from 'react'
+import { deleteFace } from '@/api/persons'
+import type { FaceEmbeddingRead } from '@/api/types'
+import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { useToast } from '@/components/ui/useToast'
+import { formatDate, formatSimilarity } from '@/lib/format'
+
+/**
+ * The face data on file for one person. Photos are never stored: each row is
+ * the embedding made from one uploaded photo.
+ */
+export function FaceList({
+  personId,
+  faces,
+  onChanged,
+}: {
+  personId: number
+  faces: FaceEmbeddingRead[]
+  onChanged: () => void
+}) {
+  const [removing, setRemoving] = useState<FaceEmbeddingRead | null>(null)
+  const toast = useToast()
+
+  if (faces.length === 0) {
+    return <EmptyState title="No face photos yet" description="Add 3 to 5 photos so this person can be recognized." />
+  }
+
+  return (
+    <>
+      <ul className="divide-y divide-gray-100">
+        {faces.map((f, i) => (
+          <li key={f.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900">
+                Face {i + 1}
+                {f.source_filename && <span className="font-normal text-gray-500"> · {f.source_filename}</span>}
+              </p>
+              <p className="text-xs text-gray-500">
+                Quality {formatSimilarity(f.det_score)} · Added {formatDate(f.created_at)}
+              </p>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => setRemoving(f)}>
+              Remove
+            </Button>
+          </li>
+        ))}
+      </ul>
+
+      <ConfirmDialog
+        open={removing !== null}
+        onClose={() => setRemoving(null)}
+        title="Remove this face?"
+        confirmLabel="Remove"
+        destructive
+        onConfirm={async () => {
+          if (!removing) return
+          await deleteFace(personId, removing.id)
+          toast.success('Face removed.')
+          onChanged()
+        }}
+      >
+        <p>
+          Bantay will stop using this face to recognize the person.
+          {faces.length - 1 < 3 && ' They will have fewer than 3 faces on file, which makes recognition less reliable.'}
+        </p>
+      </ConfirmDialog>
+    </>
+  )
+}

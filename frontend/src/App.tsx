@@ -14,6 +14,8 @@ const router = createBrowserRouter([
       { path: 'live', lazy: () => import('@/features/live-view/LiveViewPage').then((m) => ({ Component: m.LiveViewPage })) },
       { path: 'enroll', lazy: () => import('@/features/enroll/EnrollPage').then((m) => ({ Component: m.EnrollPage })) },
       { path: 'logs', lazy: () => import('@/features/entry-logs/LogsPage').then((m) => ({ Component: m.LogsPage })) },
+      { path: 'users', lazy: () => import('@/features/users/UsersPage').then((m) => ({ Component: m.UsersPage })) },
+      { path: 'users/:id', lazy: () => import('@/features/users/UserDetailPage').then((m) => ({ Component: m.UserDetailPage })) },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
