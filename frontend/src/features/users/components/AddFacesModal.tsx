@@ -52,9 +52,9 @@ export function AddFacesModal({
     <Modal
       open={open}
       onClose={close}
-      size="lg"
+      size="xl"
       title={`Add face photos — ${person.full_name}`}
-      description={result ? undefined : 'Each photo must show exactly one clear face. Photos are not stored.'}
+      description={result ? undefined : 'Capture with camera or upload photos. Each photo must show exactly one clear face. Photos are not stored.'}
       footer={
         result ? (
           <Button variant="primary" onClick={close}>

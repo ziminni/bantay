@@ -81,7 +81,7 @@ export function PhotoStep({ person, onBack, onDone }: PhotoStepProps) {
             : 'Photos are turned into face data and then discarded — no image is stored.'}
         </p>
         <Button variant="primary" onClick={upload} disabled={files.length < needed} loading={uploading}>
-          Upload {files.length > 0 && pluralize(files.length, 'photo')}
+          Enroll {files.length > 0 ? pluralize(files.length, 'photo') : 'photos'}
         </Button>
       </div>
     </div>

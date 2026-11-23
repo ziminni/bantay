@@ -59,7 +59,7 @@ export function EnrollPage() {
             step === 0
               ? 'Find someone already registered, or add a new person.'
               : step === 1
-                ? 'Upload 3 to 5 clear photos of the face. Each photo must show exactly one face.'
+                ? 'Capture with camera or upload 3 to 5 clear photos of the face. Each photo must show exactly one face.'
                 : undefined
           }
         >
