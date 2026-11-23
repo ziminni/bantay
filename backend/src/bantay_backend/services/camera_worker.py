@@ -28,6 +28,7 @@ from ..config import settings
 from ..db import session_scope
 from ..models import Camera, CameraRole, CameraStatus, Lab
 from .entry_logging import record_entry
+from .matching import find_closest
 from .recognition import get_engine
 
 logger = logging.getLogger(__name__)
@@ -204,10 +205,25 @@ class CameraWorker(threading.Thread):
                 camera = db.get(Camera, self.camera_id)
                 if lab is None or camera is None:
                     return
+                threshold = (
+                    lab.match_threshold
+                    if lab.match_threshold is not None
+                    else settings.default_match_threshold
+                )
                 for face in faces:
                     outcome = record_entry(
                         db, lab=lab, camera=camera, embedding=face.embedding, frame=frame
                     )
+                    match = find_closest(db, face.embedding)
+                    if match and match.similarity >= threshold:
+                        face.display_name = match.full_name
+                        face.matched = True
+                        face.similarity = match.similarity
+                    else:
+                        face.display_name = "Unknown"
+                        face.matched = False
+                        face.similarity = match.similarity if match else 0.0
+
                     if outcome.logged:
                         self.entries_logged += 1
         except Exception:
@@ -220,15 +236,37 @@ class CameraWorker(threading.Thread):
             annotated = frame.copy()
             for face in faces:
                 x1, y1, x2, y2 = (int(v) for v in face.bbox)
-                cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 200, 0), 2)
+                matched = getattr(face, "matched", False)
+                name = getattr(face, "display_name", None)
+                sim = getattr(face, "similarity", None)
+
+                color = (0, 200, 0) if matched else (0, 140, 255)  # Green if matched, Amber if unknown
+                cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+
+                if name:
+                    text = f"{name} ({sim:.0%})" if sim is not None else name
+                else:
+                    text = f"{face.det_score:.2f}"
+
+                (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                text_y = max(th + 6, y1 - 6)
+                cv2.rectangle(
+                    annotated,
+                    (x1, text_y - th - 4),
+                    (x1 + tw + 6, text_y + 2),
+                    color,
+                    -1,
+                )
+                text_color = (255, 255, 255) if matched else (0, 0, 0)
                 cv2.putText(
                     annotated,
-                    f"{face.det_score:.2f}",
-                    (x1, max(16, y1 - 6)),
+                    text,
+                    (x1 + 3, text_y - 2),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.5,
-                    (0, 200, 0),
+                    text_color,
                     1,
+                    cv2.LINE_AA,
                 )
 
         ok, buf = cv2.imencode(
