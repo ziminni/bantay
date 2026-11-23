@@ -1,7 +1,10 @@
+import { Cctv, LayoutDashboard, Monitor, ScanFace, ScanSearch, ScrollText, Users, type LucideIcon } from 'lucide-react'
+
 export interface NavItem {
   to: string
   label: string
   description: string
+  icon: LucideIcon
 }
 
 export interface NavGroup {
@@ -13,21 +16,23 @@ export interface NavGroup {
 export const NAVIGATION: NavGroup[] = [
   {
     items: [
-      { to: '/', label: 'Dashboard', description: "Today's entries and statistics" },
-      { to: '/live', label: 'Live View', description: 'Camera feeds' },
-      { to: '/enroll', label: 'Enroll', description: 'Register a face' },
-      { to: '/logs', label: 'Entry Logs', description: 'Search entry history' },
+      { to: '/', label: 'Dashboard', description: "Today's entries and statistics", icon: LayoutDashboard },
+      { to: '/live', label: 'Live View', description: 'Camera feeds', icon: Cctv },
+      { to: '/enroll', label: 'Enroll', description: 'Register a face', icon: ScanFace },
+      { to: '/logs', label: 'Entry Logs', description: 'Search entry history', icon: ScrollText },
     ],
   },
   {
     label: 'Manage',
     items: [
-      { to: '/users', label: 'Users', description: 'Students, faculty and staff' },
-      { to: '/labs', label: 'Labs', description: 'Laboratories and cameras' },
+      { to: '/users', label: 'Users', description: 'Students, faculty and staff', icon: Users },
+      { to: '/labs', label: 'Labs', description: 'Laboratories and cameras', icon: Monitor },
     ],
   },
   {
     label: 'Tools',
-    items: [{ to: '/tools/recognition', label: 'Test Recognition', description: 'Check matching on a photo' }],
+    items: [
+      { to: '/tools/recognition', label: 'Test Recognition', description: 'Check matching on a photo', icon: ScanSearch },
+    ],
   },
 ]
