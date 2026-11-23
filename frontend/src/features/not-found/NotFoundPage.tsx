@@ -11,7 +11,7 @@ export function NotFoundPage() {
       <p className="mt-10 font-display text-sm font-semibold tracking-[0.2em] text-marigold-600 uppercase">Error 404</p>
       <h1 className="mt-2 font-display text-3xl font-semibold text-navy-900">Nothing to watch here</h1>
       <p className="mt-2 max-w-sm text-gray-500">The page you are looking for does not exist or was moved.</p>
-      <ButtonLink to="/" variant="primary" className="mt-8" icon={<ArrowLeft />}>
+      <ButtonLink to="/dashboard" variant="primary" className="mt-8" icon={<ArrowLeft />}>
         Back to the dashboard
       </ButtonLink>
     </div>

@@ -16,7 +16,7 @@ function useCurrentPage(): { item: NavItem; group?: string } | null {
   let best: { item: NavItem; group?: string } | null = null
   for (const group of NAVIGATION) {
     for (const item of group.items) {
-      const hit = item.to === '/' ? pathname === '/' : pathname === item.to || pathname.startsWith(`${item.to}/`)
+      const hit = pathname === item.to || pathname.startsWith(`${item.to}/`)
       if (hit && (!best || item.to.length > best.item.to.length)) best = { item, group: group.label }
     }
   }

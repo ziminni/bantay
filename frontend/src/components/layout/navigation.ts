@@ -19,7 +19,7 @@ export interface NavGroup {
 export const NAVIGATION: NavGroup[] = [
   {
     label: 'Overview',
-    items: [{ to: '/', label: 'Dashboard', description: "Today's entries and statistics", icon: LayoutDashboard }],
+    items: [{ to: '/dashboard', label: 'Dashboard', description: "Today's entries and statistics", icon: LayoutDashboard }],
   },
   {
     label: 'Monitoring',

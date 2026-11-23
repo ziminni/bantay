@@ -1,6 +1,9 @@
-import { NavLink } from 'react-router-dom'
+import { LogOut } from 'lucide-react'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { logout } from '@/api/auth'
 import { BrandMark } from '@/components/brand/BrandMark'
 import { Logo } from '@/components/brand/Logo'
+import { useSession } from '@/hooks/useSession'
 import { cn } from '@/lib/cn'
 import { NAVIGATION } from './navigation'
 
@@ -10,10 +13,17 @@ import { NAVIGATION } from './navigation'
  * guide line in marigold.
  */
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const user = useSession()
+  const navigate = useNavigate()
+  const signOut = () => {
+    logout()
+    navigate('/')
+  }
+
   return (
     <div className="flex h-full flex-col bg-navy-900 text-navy-100">
       <div className="flex h-[4.5rem] shrink-0 items-center border-b border-white/10 px-6">
-        <NavLink to="/" onClick={onNavigate} aria-label="Bantay — go to the dashboard" className="rounded-md">
+        <NavLink to="/dashboard" onClick={onNavigate} aria-label="Bantay — go to the dashboard" className="rounded-md">
           <Logo variant="lockup-on-dark" className="h-10 w-auto" />
         </NavLink>
       </div>
@@ -35,7 +45,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 <li key={item.to}>
                   <NavLink
                     to={item.to}
-                    end={item.to === '/'}
                     onClick={onNavigate}
                     className={({ isActive }) =>
                       cn(
@@ -73,12 +82,35 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      <div className="flex items-center gap-3 border-t border-white/10 px-6 py-4">
-        <BrandMark tone="light" className="size-8 opacity-80" />
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-navy-100">Central Mindanao University</p>
-          <p className="truncate text-[11px] text-navy-300">Computer laboratory entry log</p>
-        </div>
+      <div className="border-t border-white/10 p-4">
+        {user ? (
+          <div className="flex items-center gap-3 rounded-xl bg-white/5 p-2.5 ring-1 ring-white/10">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-marigold-400 font-display text-sm font-semibold text-navy-950 uppercase">
+              {user.username.slice(0, 2)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-cream">{user.username}</p>
+              <p className="truncate text-[11px] text-navy-300">Lab administrator</p>
+            </div>
+            <button
+              type="button"
+              onClick={signOut}
+              aria-label="Sign out"
+              title="Sign out"
+              className="rounded-lg p-2 text-navy-300 transition-colors hover:bg-white/10 hover:text-cream"
+            >
+              <LogOut className="size-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 px-2 py-1">
+            <BrandMark tone="light" className="size-8 opacity-80" />
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-navy-100">Central Mindanao University</p>
+              <p className="truncate text-[11px] text-navy-300">Computer laboratory entry log</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
