@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -26,6 +30,14 @@ class Settings(BaseSettings):
     app_name: str = "Bantay"
     environment: Literal["development", "production"] = "development"
     debug: bool = True
+    timezone: str = Field(
+        default="Asia/Manila",
+        description=(
+            "Local time zone of the department. Timestamps are stored in UTC, but "
+            "the dashboard's idea of 'today' and its per-hour buckets follow this "
+            "zone, so a day starts at local midnight rather than at UTC midnight."
+        ),
+    )
 
     # -- Database -------------------------------------------------------
     database_url: str = Field(
@@ -132,6 +144,19 @@ class Settings(BaseSettings):
     @property
     def api_prefix(self) -> str:
         return "/api/v1"
+
+    @property
+    def tzinfo(self) -> ZoneInfo:
+        """The configured time zone, falling back to UTC if the name is unknown."""
+        try:
+            return ZoneInfo(self.timezone)
+        except ZoneInfoNotFoundError:
+            logger.error(
+                "Unknown time zone %r; falling back to UTC. The dashboard's 'today' "
+                "will follow UTC until this is corrected.",
+                self.timezone,
+            )
+            return ZoneInfo("UTC")
 
 
 @lru_cache
