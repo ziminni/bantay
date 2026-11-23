@@ -10,7 +10,16 @@ import { cn } from '@/lib/cn'
  * shows directly in an <img>. Until the backend is connected, and whenever the
  * camera has no picture, a dark placeholder explains why.
  */
-export function CameraFeed({ camera, className }: { camera: CameraRead; className?: string }) {
+export function CameraFeed({
+  camera,
+  className,
+  fill = false,
+}: {
+  camera: CameraRead
+  className?: string
+  /** Fill the parent instead of keeping a 16:9 box (used in full-screen mode). */
+  fill?: boolean
+}) {
   const [broken, setBroken] = useState(false)
 
   const reason = MOCK_MODE
@@ -24,7 +33,7 @@ export function CameraFeed({ camera, className }: { camera: CameraRead; classNam
           : null
 
   return (
-    <div className={cn('relative aspect-video overflow-hidden bg-navy-950', className)}>
+    <div className={cn('relative overflow-hidden bg-navy-950', fill ? 'size-full' : 'aspect-video', className)}>
       {reason ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[radial-gradient(ellipse_at_center,var(--color-navy-800),var(--color-navy-950))] p-4 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-white/5 text-navy-300 ring-1 ring-white/10">
