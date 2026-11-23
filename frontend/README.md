@@ -21,13 +21,20 @@ npm run build      # typecheck + production build into dist/
 
 | Route | Page | Backend endpoints it mirrors |
 |---|---|---|
-| `/` | Dashboard — today's counters, entries per hour, per-lab totals, latest entries | `GET /stats/today` |
-| `/live` | Live View — camera grid, click to enlarge | `GET /cameras`, `GET /cameras/{id}/stream.mjpeg` |
+| `/` | Landing page — what Bantay is, how it works, privacy, and the login dialog | — (see the note on login below) |
+| `/dashboard` | Dashboard — today's counters, entries per hour, per-lab totals, latest entries | `GET /stats/today` |
+| `/live` | Live View — camera grid, click to enlarge, full-screen button | `GET /cameras`, `GET /cameras/{id}/stream.mjpeg` |
+| `/wall`, `/wall/:labId`, `/wall/all` | Camera Wall — pick a lab, then watch all its cameras at once (1/4/9/16 grid, paging, cycling, full screen) | `GET /labs`, `GET /cameras`, `GET /cameras/{id}/stream.mjpeg` |
 | `/enroll` | Enroll — choose person → upload 3–5 photos → result | `POST /persons`, `POST /persons/{id}/faces` |
 | `/logs` | Entry Logs — search, filters, details panel, manual entry, CSV export | `GET/POST/DELETE /entries`, `GET /entries/export.csv` |
 | `/users`, `/users/:id` | Users — list, details, face data, edit, deactivate, delete | `/persons`, `/persons/{id}/faces` |
 | `/labs`, `/labs/:id` | Labs — settings and the lab's cameras (add, edit, test, restart) | `/labs`, `/cameras` |
 | `/tools/recognition` | Test Recognition — match a photo, optionally record an entry | `POST /recognize`, `POST /recognize/log` |
+
+> **About login.** The backend has no accounts or login endpoint yet, so the
+> login dialog only remembers the name for the browser tab (`src/api/auth.ts`).
+> It does not protect any page or API call. Replace `login()` there once the
+> backend adds authentication.
 
 ## Design
 
