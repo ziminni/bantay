@@ -199,6 +199,13 @@ class CameraWorker(threading.Thread):
 
     def _handle_faces(self, faces: list, frame: np.ndarray) -> None:
         """Apply the entry rules to each detected face, in its own transaction."""
+        for face in faces:
+            # Default fallback attributes
+            face.display_name = "Unknown"
+            face.matched = False
+            face.has_match = False
+            face.similarity = None
+
         try:
             with session_scope() as db:
                 lab = db.get(Lab, self.lab_id)
@@ -215,14 +222,16 @@ class CameraWorker(threading.Thread):
                         db, lab=lab, camera=camera, embedding=face.embedding, frame=frame
                     )
                     match = find_closest(db, face.embedding)
-                    if match and match.similarity >= threshold:
+                    if match:
                         face.display_name = match.full_name
-                        face.matched = True
+                        face.has_match = True
                         face.similarity = match.similarity
+                        face.matched = match.similarity >= threshold
                     else:
                         face.display_name = "Unknown"
+                        face.has_match = False
                         face.matched = False
-                        face.similarity = match.similarity if match else 0.0
+                        face.similarity = None
 
                     if outcome.logged:
                         self.entries_logged += 1
@@ -230,42 +239,84 @@ class CameraWorker(threading.Thread):
             logger.exception("Could not write the entry for camera %s.", self.camera_id)
 
     def _publish(self, frame: np.ndarray, faces: list) -> None:
-        """Draw boxes and labels, then store the JPEG for the live view."""
+        """Draw boxes and labels styled identically to Test Recognition, then store the JPEG."""
         annotated = frame
         if faces:
             annotated = frame.copy()
+            h, w = annotated.shape[:2]
+
             for face in faces:
                 x1, y1, x2, y2 = (int(v) for v in face.bbox)
                 matched = getattr(face, "matched", False)
-                name = getattr(face, "display_name", None)
+                has_match = getattr(face, "has_match", False)
+                name = getattr(face, "display_name", None) or "Unknown"
                 sim = getattr(face, "similarity", None)
 
-                color = (0, 200, 0) if matched else (0, 140, 255)  # Green if matched, Amber if unknown
-                cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
-
-                if name:
-                    text = f"{name} ({sim:.0%})" if sim is not None else name
+                # Color palette matching ImageWithBoxes.tsx:
+                # - isMatch: border-emerald-400 (BGR: 153, 211, 52), outline-emerald-950 (BGR: 20, 44, 2), bg-emerald-600 (BGR: 105, 150, 5)
+                # - low confidence (has_match): border-white (BGR: 255, 255, 255), outline-gray-900 (BGR: 39, 24, 17), bg-amber-600 (BGR: 6, 119, 217)
+                # - unknown: border-white (BGR: 255, 255, 255), outline-gray-900 (BGR: 39, 24, 17), bg-gray-900 (BGR: 39, 24, 17)
+                if matched:
+                    box_color = (153, 211, 52)      # Emerald-400
+                    outline_color = (20, 44, 2)     # Emerald-950
+                    badge_color = (105, 150, 5)     # Emerald-600
+                elif has_match:
+                    box_color = (255, 255, 255)     # White
+                    outline_color = (39, 24, 17)    # Gray-900
+                    badge_color = (6, 119, 217)     # Amber-600
                 else:
-                    text = f"{face.det_score:.2f}"
+                    box_color = (255, 255, 255)     # White
+                    outline_color = (39, 24, 17)    # Gray-900
+                    badge_color = (39, 24, 17)      # Gray-900
 
-                (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-                text_y = max(th + 6, y1 - 6)
-                cv2.rectangle(
-                    annotated,
-                    (x1, text_y - th - 4),
-                    (x1 + tw + 6, text_y + 2),
-                    color,
-                    -1,
-                )
-                text_color = (255, 255, 255) if matched else (0, 0, 0)
+                # 1. Outer dark outline + Inner crisp box (matching border-2 outline-2)
+                cv2.rectangle(annotated, (x1 - 1, y1 - 1), (x2 + 1, y2 + 1), outline_color, 4)
+                cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, 2)
+
+                # 2. Text layout
+                if has_match and sim is not None:
+                    text = f"{name} · {int(round(sim * 100))}%"
+                else:
+                    text = name
+
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 0.5
+                thickness = 1
+
+                (tw, th), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+                pad_x = 6
+                pad_y = 4
+                badge_w = tw + pad_x * 2
+                badge_h = th + pad_y * 2
+
+                # Collision check with top edge (matching isNearTop logic)
+                is_near_top = y1 < (badge_h + 8)
+                if is_near_top:
+                    badge_x1 = max(4, x1 + 4)
+                    badge_y1 = y1 + 4
+                else:
+                    badge_x1 = max(4, x1)
+                    badge_y1 = y1 - badge_h - 4
+
+                badge_x2 = min(w - 4, badge_x1 + badge_w)
+                badge_y2 = badge_y1 + badge_h
+
+                # Drop shadow / dark outline for badge (shadow-md)
+                cv2.rectangle(annotated, (badge_x1 - 1, badge_y1 - 1), (badge_x2 + 1, badge_y2 + 1), (15, 23, 42), -1)
+                # Badge pill background
+                cv2.rectangle(annotated, (badge_x1, badge_y1), (badge_x2, badge_y2), badge_color, -1)
+
+                # Text inside badge in crisp anti-aliased white
+                text_x = badge_x1 + pad_x
+                text_y = badge_y1 + pad_y + th
                 cv2.putText(
                     annotated,
                     text,
-                    (x1 + 3, text_y - 2),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    text_color,
-                    1,
+                    (text_x, text_y),
+                    font,
+                    font_scale,
+                    (255, 255, 255),
+                    thickness,
                     cv2.LINE_AA,
                 )
 
