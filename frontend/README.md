@@ -1,11 +1,11 @@
 # Bantay — Frontend
 
 The administrator dashboard for Bantay: React 19, TypeScript, Vite, Tailwind CSS,
-React Router, Recharts.
+React Router, Recharts, Lucide icons.
 
 > **Status:** connected to the backend via Vite dev proxy (`/api` and `/media`
-> -> `http://127.0.0.1:8000`). Layout and behaviour only — no visual design yet
-> (neutral greys, system font). There is no login yet.
+> -> `http://127.0.0.1:8000`). Styled with the Bantay brand (see Design below).
+> There is no login yet.
 
 ## Running it
 
@@ -28,6 +28,26 @@ npm run build      # typecheck + production build into dist/
 | `/users`, `/users/:id` | Users — list, details, face data, edit, deactivate, delete | `/persons`, `/persons/{id}/faces` |
 | `/labs`, `/labs/:id` | Labs — settings and the lab's cameras (add, edit, test, restart) | `/labs`, `/cameras` |
 | `/tools/recognition` | Test Recognition — match a photo, optionally record an entry | `POST /recognize`, `POST /recognize/log` |
+
+## Design
+
+The look comes from the Bantay brand assets (in `src/assets/brand/`):
+
+| Token | Colour | Used for |
+|---|---|---|
+| navy | `#0E2A47` | sidebar, headings, primary buttons |
+| marigold | `#F2A93B` | the accent — active nav, focus rings, highlights. Used sparingly |
+| cream | `#F7F5F0` | page background |
+| sand | `#E9E5DC` | borders and quiet surfaces |
+
+- Tokens live in `src/index.css`. Tailwind's `gray-*` scale is remapped to
+  brand neutrals, so plain `gray` classes already follow the brand.
+- Fonts are Outfit (headings) and Inter (text), bundled through npm rather than
+  a CDN, because the system runs on the department's local network.
+- The logo's scan brackets reappear as a motif: camera feeds, the featured stat
+  card, empty and loading states (`components/brand/BrandMark.tsx`).
+- Status colours always come with words: green fine, red a problem, marigold
+  needs attention.
 
 ## Folder structure
 
