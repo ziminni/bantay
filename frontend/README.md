@@ -29,12 +29,14 @@ npm run build      # typecheck + production build into dist/
 | `/logs` | Entry Logs — search, filters, details panel, manual entry, CSV export | `GET/POST/DELETE /entries`, `GET /entries/export.csv` |
 | `/users`, `/users/:id` | Users — list, details, face data, edit, deactivate, delete | `/persons`, `/persons/{id}/faces` |
 | `/labs`, `/labs/:id` | Labs — settings and the lab's cameras (add, edit, test, restart) | `/labs`, `/cameras` |
+| `/profile` | My profile — account details, display name, log out (also in the avatar menu, top right) | — (kept in the browser for now) |
 | `/tools/recognition` | Test Recognition — match a photo, optionally record an entry | `POST /recognize`, `POST /recognize/log` |
 
-> **About login.** The backend has no accounts or login endpoint yet, so the
-> login dialog only remembers the name for the browser tab (`src/api/auth.ts`).
-> It does not protect any page or API call. Replace `login()` there once the
-> backend adds authentication.
+> **About login.** The backend has no accounts or login endpoint yet, so login
+> is a stand-in (`src/api/auth.ts`): any username and password work, and the
+> profile is kept in this browser. Logged-out visitors are sent to the login
+> dialog and brought back afterwards, but the API itself is still open to
+> anyone on the network. Replace `login()` once the backend adds authentication.
 
 ## Design
 
