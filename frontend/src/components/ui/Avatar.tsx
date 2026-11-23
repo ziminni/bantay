@@ -1,18 +1,6 @@
 import { ScanFace } from 'lucide-react'
 import { cn } from '@/lib/cn'
-
-/** Honorifics are skipped so "Dr. Ramon Salazar" becomes "RS". */
-const TITLES = new Set(['dr.', 'prof.', 'engr.', 'mr.', 'ms.', 'mrs.', 'atty.'])
-
-function initials(name: string): string {
-  const parts = name
-    .split(/\s+/)
-    .filter((p) => p && !TITLES.has(p.toLowerCase()))
-  if (parts.length === 0) return '?'
-  const first = parts[0][0]
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : ''
-  return (first + last).toUpperCase()
-}
+import { initials } from '@/lib/initials'
 
 const sizes = {
   sm: 'size-8 text-xs',

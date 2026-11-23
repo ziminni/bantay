@@ -46,7 +46,7 @@ export function LandingPage() {
   }
   const closeLogin = () => {
     setLoginOpen(false)
-    if (params.has('login')) setParams({}, { replace: true })
+    if (params.has('login') || params.has('next')) setParams({}, { replace: true })
   }
 
   const primaryAction = user ? (
@@ -75,7 +75,7 @@ export function LandingPage() {
             ))}
           </nav>
           <div className="ml-auto hidden items-center gap-3 md:flex">
-            {user && <span className="text-sm text-navy-200">Signed in as {user.username}</span>}
+            {user && <span className="text-sm text-navy-200">Signed in as {user.displayName}</span>}
             {primaryAction}
           </div>
           <button
@@ -269,7 +269,7 @@ export function LandingPage() {
         </div>
       </footer>
 
-      <LoginModal open={loginOpen} onClose={closeLogin} />
+      <LoginModal open={loginOpen} onClose={closeLogin} next={params.get('next')} />
     </div>
   )
 }

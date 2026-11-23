@@ -5,6 +5,7 @@ import { BrandMark } from '@/components/brand/BrandMark'
 import { Logo } from '@/components/brand/Logo'
 import { useSession } from '@/hooks/useSession'
 import { cn } from '@/lib/cn'
+import { initials } from '@/lib/initials'
 import { NAVIGATION } from './navigation'
 
 /**
@@ -84,19 +85,26 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="border-t border-white/10 p-4">
         {user ? (
-          <div className="flex items-center gap-3 rounded-xl bg-white/5 p-2.5 ring-1 ring-white/10">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-marigold-400 font-display text-sm font-semibold text-navy-950 uppercase">
-              {user.username.slice(0, 2)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-cream">{user.username}</p>
-              <p className="truncate text-[11px] text-navy-300">Lab administrator</p>
-            </div>
+          <div className="flex items-center gap-1 rounded-xl bg-white/5 p-1.5 ring-1 ring-white/10">
+            <NavLink
+              to="/profile"
+              onClick={onNavigate}
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 transition-colors hover:bg-white/5"
+              title="My profile"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-marigold-400 font-display text-sm font-semibold text-navy-950">
+                {initials(user.displayName)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-cream">{user.displayName}</span>
+                <span className="block truncate text-[11px] text-navy-300">{user.role}</span>
+              </span>
+            </NavLink>
             <button
               type="button"
               onClick={signOut}
-              aria-label="Sign out"
-              title="Sign out"
+              aria-label="Log out"
+              title="Log out"
               className="rounded-lg p-2 text-navy-300 transition-colors hover:bg-white/10 hover:text-cream"
             >
               <LogOut className="size-4" />

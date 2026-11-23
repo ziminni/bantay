@@ -10,17 +10,18 @@ import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/useToast'
+import { safeNext } from '@/lib/safeNext'
 
 /** The sign-in dialog opened from the landing page. */
-export function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function LoginModal({ open, onClose, next }: { open: boolean; onClose: () => void; next?: string | null }) {
   return (
     <Modal open={open} onClose={onClose} size="sm" title="Log in to Bantay" description="For lab administrators and department staff.">
-      {open && <LoginForm />}
+      {open && <LoginForm redirectTo={safeNext(next)} />}
     </Modal>
   )
 }
 
-function LoginForm() {
+function LoginForm({ redirectTo }: { redirectTo: string }) {
   const id = useId()
   const navigate = useNavigate()
   const toast = useToast()
@@ -43,8 +44,8 @@ function LoginForm() {
     setSubmitting(true)
     try {
       const s = await login(username, password)
-      toast.success(`Welcome, ${s.username}.`)
-      navigate('/dashboard')
+      toast.success(`Welcome, ${s.displayName}.`)
+      navigate(redirectTo)
     } catch (err) {
       setFormError(errorMessage(err))
       setSubmitting(false)

@@ -1,4 +1,4 @@
-import { ChevronRight, Clock, Cctv, Cpu, Database, FlaskConical, Menu, ScanFace } from 'lucide-react'
+import { ChevronRight, Clock, Cctv, Cpu, Database, FlaskConical, Menu, ScanFace, UserRound } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getHealth } from '@/api/system'
@@ -9,10 +9,14 @@ import { useAsync } from '@/hooks/useAsync'
 import { useNow } from '@/hooks/useNow'
 import { cn } from '@/lib/cn'
 import { NAVIGATION, type NavItem } from './navigation'
+import { ProfileMenu } from './ProfileMenu'
 
 /** Which sidebar item the current address belongs to (detail pages count as their list). */
+const PROFILE: NavItem = { to: '/profile', label: 'My profile', description: 'Your account in Bantay', icon: UserRound }
+
 function useCurrentPage(): { item: NavItem; group?: string } | null {
   const { pathname } = useLocation()
+  if (pathname === PROFILE.to) return { item: PROFILE, group: 'Account' }
   let best: { item: NavItem; group?: string } | null = null
   for (const group of NAVIGATION) {
     for (const item of group.items) {
@@ -117,14 +121,13 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
           </>
         )}
 
+        <span aria-hidden className="mx-1 hidden h-6 w-px bg-gray-200 sm:block" />
         {!onEnroll && (
-          <>
-            <span aria-hidden className="mx-1 hidden h-6 w-px bg-gray-200 sm:block" />
-            <ButtonLink to="/enroll" variant="accent" size="sm" icon={<ScanFace />} className="hidden h-9 sm:inline-flex">
-              Enroll
-            </ButtonLink>
-          </>
+          <ButtonLink to="/enroll" variant="accent" size="sm" icon={<ScanFace />} className="hidden h-9 sm:inline-flex">
+            Enroll
+          </ButtonLink>
         )}
+        <ProfileMenu />
       </div>
     </header>
   )

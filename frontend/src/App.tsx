@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { RequireAuth } from '@/components/layout/RequireAuth'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ToastProvider } from '@/components/ui/Toast'
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
@@ -13,7 +14,12 @@ const router = createBrowserRouter([
     lazy: () => import('@/features/landing/LandingPage').then((m) => ({ Component: m.LandingPage })),
   },
   {
-    element: <AppLayout />,
+    // Every page of the app needs a login (see the note in src/api/auth.ts).
+    element: (
+      <RequireAuth>
+        <AppLayout />
+      </RequireAuth>
+    ),
     hydrateFallbackElement: <LoadingState />,
     children: [
       { path: 'dashboard', lazy: () => import('@/features/dashboard/DashboardPage').then((m) => ({ Component: m.DashboardPage })) },
@@ -30,6 +36,7 @@ const router = createBrowserRouter([
         path: 'tools/recognition',
         lazy: () => import('@/features/recognition/RecognitionTestPage').then((m) => ({ Component: m.RecognitionTestPage })),
       },
+      { path: 'profile', lazy: () => import('@/features/profile/ProfilePage').then((m) => ({ Component: m.ProfilePage })) },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
