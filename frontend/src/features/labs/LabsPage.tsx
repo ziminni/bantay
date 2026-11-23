@@ -1,3 +1,4 @@
+import { Cctv, Monitor, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createLab, listLabs } from '@/api/labs'
@@ -20,16 +21,31 @@ const columns: Column<LabRead>[] = [
     key: 'name',
     header: 'Laboratory',
     cell: (l) => (
-      <>
-        <span className="font-medium text-gray-900">{l.name}</span>
-        {l.room && <span className="block text-xs text-gray-500">{l.room}</span>}
-      </>
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-navy-50 text-navy-700">
+          <Monitor className="size-[18px]" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <span className="block truncate font-medium text-navy-900">{l.name}</span>
+          {l.room && <span className="block truncate text-xs text-gray-500">{l.room}</span>}
+        </div>
+      </div>
     ),
   },
   { key: 'hours', header: 'Hours', hideBelow: 'md', cell: (l) => formatOpeningHours(l.open_time, l.close_time) },
   { key: 'threshold', header: 'Threshold', hideBelow: 'lg', align: 'right', cell: (l) => formatSimilarity(l.match_threshold) },
   { key: 'cooldown', header: 'Cooldown', hideBelow: 'lg', align: 'right', cell: (l) => formatDuration(l.cooldown_seconds) },
-  { key: 'cameras', header: 'Cameras', align: 'right', cell: (l) => l.camera_count },
+  {
+    key: 'cameras',
+    header: 'Cameras',
+    align: 'right',
+    cell: (l) => (
+      <span className="inline-flex items-center gap-1.5 tabular-nums">
+        <Cctv className="size-4 text-gray-400" aria-hidden />
+        {l.camera_count}
+      </span>
+    ),
+  },
   { key: 'status', header: 'Status', cell: (l) => <ActiveBadge active={l.active} /> },
 ]
 
@@ -45,7 +61,7 @@ export function LabsPage() {
         title="Labs"
         description="Computer laboratories, their recognition settings and their cameras. Open a lab to manage its cameras."
         actions={
-          <Button variant="primary" onClick={() => setAdding(true)}>
+          <Button variant="primary" onClick={() => setAdding(true)} icon={<Plus />}>
             Add lab
           </Button>
         }
@@ -68,7 +84,7 @@ export function LabsPage() {
                 title="No laboratories yet"
                 description="Add the first lab, then add the camera at its entrance."
                 action={
-                  <Button variant="primary" onClick={() => setAdding(true)}>
+                  <Button variant="primary" onClick={() => setAdding(true)} icon={<Plus />}>
                     Add lab
                   </Button>
                 }

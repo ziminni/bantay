@@ -1,3 +1,4 @@
+import { Download, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { exportEntriesCsv, listEntries } from '@/api/entries'
 import { errorMessage } from '@/api/errors'
@@ -60,7 +61,7 @@ export function LogsPage() {
         title="Entry Logs"
         description="Every recorded entry into the labs, newest first. Click a row for details."
         actions={
-          <Button variant="primary" onClick={() => setAdding(true)}>
+          <Button variant="primary" onClick={() => setAdding(true)} icon={<Plus />}>
             Add manual entry
           </Button>
         }
@@ -85,7 +86,7 @@ export function LogsPage() {
           onChange={filters.setFilters}
           onClear={() => filters.setFilters({ ...LOG_FILTER_DEFAULTS, person_id: filters.values.person_id })}
           actions={
-            <Button onClick={exportCsv} loading={exporting} disabled={!page || page.total === 0}>
+            <Button onClick={exportCsv} loading={exporting} disabled={!page || page.total === 0} icon={<Download />}>
               Export CSV
             </Button>
           }

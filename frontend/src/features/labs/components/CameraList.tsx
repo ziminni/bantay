@@ -1,3 +1,4 @@
+import { AlertCircle, DoorOpen, Monitor, Pencil, Plug, Plus, RotateCw } from 'lucide-react'
 import { useState } from 'react'
 import { restartCamera, testCamera } from '@/api/cameras'
 import { errorMessage } from '@/api/errors'
@@ -25,7 +26,7 @@ export function CameraList({ cameras, onEdit, onAdd, onChanged }: CameraListProp
         title="No cameras in this lab"
         description="Add the camera at the lab entrance so Bantay can log who walks in."
         action={
-          <Button variant="primary" onClick={onAdd}>
+          <Button variant="primary" onClick={onAdd} icon={<Plus />}>
             Add camera
           </Button>
         }
@@ -74,38 +75,49 @@ function CameraRow({ camera, onEdit, onChanged }: { camera: CameraRead; onEdit: 
   }
 
   return (
-    <li className="space-y-3 px-5 py-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-medium text-gray-900">{camera.name}</h3>
-            <CameraStatusBadge status={camera.status} />
+    <li className="space-y-3 px-5 py-5 sm:px-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-navy-900 text-marigold-400">
+            {camera.role === 'ENTRY' ? <DoorOpen className="size-5" aria-hidden /> : <Monitor className="size-5" aria-hidden />}
+          </span>
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-display font-semibold text-navy-900">{camera.name}</h3>
+              <CameraStatusBadge status={camera.status} />
+            </div>
+            <p className="text-sm text-gray-500">
+              {CAMERA_ROLE_SHORT[camera.role]} camera
+              {camera.status !== 'DISABLED' && ` · Last picture ${formatRelative(camera.last_seen_at)}`}
+            </p>
+            <code
+              className="inline-block max-w-full truncate rounded-md bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-600"
+              title={camera.rtsp_url ?? ''}
+            >
+              {camera.rtsp_url}
+            </code>
           </div>
-          <p className="text-sm text-gray-500">
-            {CAMERA_ROLE_SHORT[camera.role]} camera
-            {camera.status !== 'DISABLED' && ` · Last picture ${formatRelative(camera.last_seen_at)}`}
-          </p>
-          <code className="block truncate text-xs text-gray-500" title={camera.rtsp_url ?? ''}>
-            {camera.rtsp_url}
-          </code>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 sm:pl-15">
           {camera.enabled && camera.status !== 'ONLINE' && (
-            <Button size="sm" onClick={restart} loading={restarting}>
+            <Button size="sm" onClick={restart} loading={restarting} icon={<RotateCw />}>
               Restart
             </Button>
           )}
-          <Button size="sm" onClick={test} loading={testing} disabled={!camera.enabled}>
+          <Button size="sm" onClick={test} loading={testing} disabled={!camera.enabled} icon={<Plug />}>
             Test connection
           </Button>
-          <Button size="sm" onClick={onEdit}>
+          <Button size="sm" onClick={onEdit} icon={<Pencil />}>
             Edit
           </Button>
         </div>
       </div>
 
       {camera.last_error && camera.status === 'OFFLINE' && !result && (
-        <p className="text-sm text-gray-700">Last error: {camera.last_error}</p>
+        <p className="flex items-center gap-2 text-sm text-red-700 sm:pl-15">
+          <AlertCircle className="size-4 shrink-0" aria-hidden />
+          Last error: {camera.last_error}
+        </p>
       )}
 
       {result && (

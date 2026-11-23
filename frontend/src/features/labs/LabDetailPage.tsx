@@ -1,3 +1,4 @@
+import { Cctv, Pencil, Plus, Power, PowerOff, ScrollText, Settings2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { listCameras } from '@/api/cameras'
@@ -65,14 +66,22 @@ export function LabDetailPage() {
         description={l.room ?? undefined}
         actions={
           <>
-            <ButtonLink to={`/logs?lab_id=${l.id}`}>Entry logs</ButtonLink>
-            <Button onClick={() => setDialog('edit')}>Edit</Button>
+            <ButtonLink to={`/logs?lab_id=${l.id}`} icon={<ScrollText />}>
+              Entry logs
+            </ButtonLink>
+            <Button onClick={() => setDialog('edit')} icon={<Pencil />}>
+              Edit
+            </Button>
             {l.active ? (
-              <Button onClick={() => setDialog('deactivate')}>Deactivate</Button>
+              <Button onClick={() => setDialog('deactivate')} icon={<PowerOff />}>
+                Deactivate
+              </Button>
             ) : (
-              <Button onClick={activate}>Activate</Button>
+              <Button onClick={activate} icon={<Power />}>
+                Activate
+              </Button>
             )}
-            <Button variant="danger" onClick={() => setDialog('delete')}>
+            <Button variant="danger" onClick={() => setDialog('delete')} icon={<Trash2 />}>
               Delete
             </Button>
           </>
@@ -83,7 +92,7 @@ export function LabDetailPage() {
         {!l.active && <Alert title="This lab is inactive">No entries are recorded here until it is activated again.</Alert>}
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <Section title="Settings">
+          <Section title="Settings" icon={<Settings2 />}>
             <DescriptionList
               items={[
                 { label: 'Room', value: l.room ?? '—' },
@@ -98,12 +107,13 @@ export function LabDetailPage() {
 
           <Section
             title="Cameras"
+            icon={<Cctv />}
             description="Entrance cameras record entries. Room cameras are for live view only."
             className="lg:col-span-2"
             flush
             actions={
               cameras.data && cameras.data.length > 0 ? (
-                <Button size="sm" onClick={() => openCamera(null)}>
+                <Button size="sm" onClick={() => openCamera(null)} icon={<Plus />}>
                   Add camera
                 </Button>
               ) : undefined

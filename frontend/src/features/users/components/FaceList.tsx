@@ -1,3 +1,4 @@
+import { ScanFace, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { deleteFace } from '@/api/persons'
 import type { FaceEmbeddingRead } from '@/api/types'
@@ -31,17 +32,22 @@ export function FaceList({
     <>
       <ul className="divide-y divide-gray-100">
         {faces.map((f, i) => (
-          <li key={f.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900">
-                Face {i + 1}
-                {f.source_filename && <span className="font-normal text-gray-500"> · {f.source_filename}</span>}
-              </p>
-              <p className="text-xs text-gray-500">
-                Quality {formatSimilarity(f.det_score)} · Added {formatDate(f.created_at)}
-              </p>
+          <li key={f.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-navy-50 text-navy-700">
+                <ScanFace className="size-[18px]" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-navy-900">
+                  Face {i + 1}
+                  {f.source_filename && <span className="font-normal text-gray-500"> · {f.source_filename}</span>}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Quality {formatSimilarity(f.det_score)} · Added {formatDate(f.created_at)}
+                </p>
+              </div>
             </div>
-            <Button size="sm" variant="ghost" onClick={() => setRemoving(f)}>
+            <Button size="sm" variant="ghost" onClick={() => setRemoving(f)} icon={<Trash2 />}>
               Remove
             </Button>
           </li>
