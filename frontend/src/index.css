@@ -1,111 +1,156 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/outfit';
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+/*
+ * Bantay design tokens, taken from the brand assets:
+ *   navy     #0E2A47  the logo and primary actions
+ *   marigold #F2A93B  the eye's iris, used sparingly as the accent
+ *   cream    #F7F5F0  page background
+ *   sand     #E9E5DC  borders and quiet surfaces
+ *
+ * Tailwind's grey scale is replaced with brand neutrals that run from sand
+ * (light) to navy (dark), so every existing gray-* class follows the brand.
+ * Fonts are bundled, not loaded from a CDN, because the system runs on the
+ * department's local network.
+ */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Outfit Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --color-gray-50: #faf8f4;
+  --color-gray-100: #f2efe8;
+  --color-gray-200: #e6e1d6;
+  --color-gray-300: #d4cdbf;
+  --color-gray-400: #8e9aa8;
+  --color-gray-500: #5e7085;
+  --color-gray-600: #475b71;
+  --color-gray-700: #33475e;
+  --color-gray-800: #1f3550;
+  --color-gray-900: #0e2a47;
+  --color-gray-950: #081b30;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
+  --color-navy-50: #eef2f7;
+  --color-navy-100: #d9e1ec;
+  --color-navy-200: #b9c6d3;
+  --color-navy-300: #8da2b8;
+  --color-navy-400: #617d99;
+  --color-navy-500: #3d5670;
+  --color-navy-600: #2c4560;
+  --color-navy-700: #1f3a5a;
+  --color-navy-800: #173252;
+  --color-navy-900: #0e2a47;
+  --color-navy-950: #091c31;
+
+  --color-marigold-50: #fef8ec;
+  --color-marigold-100: #fdecc9;
+  --color-marigold-200: #fad692;
+  --color-marigold-300: #f6c05e;
+  --color-marigold-400: #f2a93b;
+  --color-marigold-500: #e08e1b;
+  --color-marigold-600: #c27012;
+  --color-marigold-700: #9a5212;
+  --color-marigold-800: #7a4115;
+  --color-marigold-900: #643614;
+
+  --color-cream: #f7f5f0;
+  --color-sand: #e9e5dc;
+
+  --shadow-card: 0 1px 2px rgb(14 42 71 / 0.04), 0 1px 3px rgb(14 42 71 / 0.06);
+  --shadow-raised: 0 4px 12px -2px rgb(14 42 71 / 0.10), 0 2px 4px -2px rgb(14 42 71 / 0.06);
+  --shadow-overlay: 0 24px 48px -12px rgb(9 28 49 / 0.35);
+
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-slide-in: slide-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-scan: scan 3.2s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes scan {
+    0%,
+    100% {
+      top: 12%;
+    }
+    50% {
+      top: 84%;
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @keyframes slide-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: none;
+    }
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-gray-900);
+    background: var(--color-cream);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'cv11', 'ss01';
   }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+  body {
+    min-height: 100vh;
   }
-}
 
-body {
-  margin: 0;
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
   }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+
+  ::selection {
+    background: var(--color-marigold-200);
+    color: var(--color-navy-950);
   }
-}
-p {
-  margin: 0;
-}
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
+  :focus-visible {
+    outline: 2px solid var(--color-marigold-400);
+    outline-offset: 2px;
+  }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
+  dialog::backdrop {
+    backdrop-filter: blur(2px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 1ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
 }

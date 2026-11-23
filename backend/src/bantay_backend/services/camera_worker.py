@@ -28,6 +28,7 @@ from ..config import settings
 from ..db import session_scope
 from ..models import Camera, CameraRole, CameraStatus, Lab
 from .entry_logging import record_entry
+from .matching import find_closest
 from .recognition import get_engine
 
 logger = logging.getLogger(__name__)
@@ -49,12 +50,33 @@ class FrameBuffer:
         self._event.set()
         self._event.clear()
 
-    def get(self) -> bytes | None:
+    def clear(self) -> None:
         with self._lock:
+            self.jpeg = None
+            self.updated_at = 0.0
+
+    def get(self, max_age: float = 2.5) -> bytes | None:
+        with self._lock:
+            if self.jpeg is None:
+                return None
+            if time.monotonic() - self.updated_at > max_age:
+                return None
             return self.jpeg
 
     def wait_for_new(self, timeout: float) -> bool:
         return self._event.wait(timeout)
+
+
+@dataclass(slots=True)
+class FaceOverlay:
+    """Carries face bounding box and match metadata for stream annotation."""
+
+    bbox: tuple[float, float, float, float]
+    det_score: float
+    display_name: str = "Unknown"
+    has_match: bool = False
+    matched: bool = False
+    similarity: float | None = None
 
 
 def _placeholder_jpeg(text: str, width: int = 640, height: int = 360) -> bytes:
@@ -97,6 +119,10 @@ class CameraWorker(threading.Thread):
                 cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
                 # Keep the decoder from queueing stale frames.
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                try:
+                    cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
+                except Exception:
+                    pass
 
                 if not cap.isOpened():
                     raise RuntimeError("could not open the stream")
@@ -119,81 +145,201 @@ class CameraWorker(threading.Thread):
 
             if self._stop.wait(backoff):
                 break
-            backoff = min(backoff * 2, settings.camera_reconnect_max_seconds)
+            backoff = min(backoff * 1.5, 6.0)
 
         self._set_connected(False, "stopped")
         logger.info("Camera worker %s stopped.", self.camera_id)
 
     # -- main loop ------------------------------------------------------
     def _loop(self, cap: cv2.VideoCapture) -> None:
-        interval = 1.0 / settings.camera_sample_fps
+        pub_interval = 1.0 / max(settings.stream_fps, 1.0)
         engine = get_engine()
-        last_fail = 0.0
+        last_fail = 0
+        last_pub = 0.0
+        last_recog = 0.0
+        recog_busy = False
+        recog_lock = threading.Lock()
+        active_faces: list = []
+        faces_lock = threading.Lock()
+
+        def run_recognition(recog_frame: np.ndarray) -> None:
+            nonlocal recog_busy, active_faces
+            try:
+                found_faces = engine.detect(recog_frame)
+                overlays: list[FaceOverlay] = []
+                if found_faces:
+                    overlays = self._handle_faces(found_faces, recog_frame)
+                with faces_lock:
+                    active_faces = overlays
+            except Exception:
+                logger.exception("Recognition failed on camera %s.", self.camera_id)
+            finally:
+                with recog_lock:
+                    recog_busy = False
 
         while not self._stop.is_set():
-            started = time.monotonic()
             ok, frame = cap.read()
 
             if not ok or frame is None:
                 last_fail += 1
                 if last_fail > 30:
                     raise RuntimeError("stream returned no frames")
-                time.sleep(0.1)
+                time.sleep(0.05)
                 continue
 
             last_fail = 0
             self.frames_read += 1
 
-            faces = []
+            now = time.monotonic()
             if self.role == CameraRole.ENTRY and engine.is_ready():
-                try:
-                    faces = engine.detect(frame)
-                except Exception:
-                    logger.exception("Recognition failed on camera %s.", self.camera_id)
-                    faces = []
+                with recog_lock:
+                    if not recog_busy and (now - last_recog >= 0.5):
+                        recog_busy = True
+                        last_recog = now
+                        threading.Thread(
+                            target=run_recognition,
+                            args=(frame.copy(),),
+                            daemon=True,
+                            name=f"recog-cam-{self.camera_id}",
+                        ).start()
 
-                if faces:
-                    self._handle_faces(faces, frame)
+            # Throttle publishing to stream_fps so cv2.imencode does not overwhelm CPU
+            if now - last_pub >= pub_interval:
+                last_pub = now
+                with faces_lock:
+                    current_faces = list(active_faces) if (now - last_recog <= 1.5) else []
+                self._publish(frame, current_faces)
 
-            self._publish(frame, faces)
-
-            elapsed = time.monotonic() - started
-            if elapsed < interval:
-                time.sleep(interval - elapsed)
-
-    def _handle_faces(self, faces: list, frame: np.ndarray) -> None:
+    def _handle_faces(self, faces: list, frame: np.ndarray) -> list[FaceOverlay]:
         """Apply the entry rules to each detected face, in its own transaction."""
+        overlays: list[FaceOverlay] = []
         try:
             with session_scope() as db:
                 lab = db.get(Lab, self.lab_id)
                 camera = db.get(Camera, self.camera_id)
-                if lab is None or camera is None:
-                    return
+                threshold = (
+                    lab.match_threshold
+                    if lab and lab.match_threshold is not None
+                    else settings.default_match_threshold
+                )
                 for face in faces:
-                    outcome = record_entry(
-                        db, lab=lab, camera=camera, embedding=face.embedding, frame=frame
-                    )
-                    if outcome.logged:
-                        self.entries_logged += 1
-        except Exception:
-            logger.exception("Could not write the entry for camera %s.", self.camera_id)
+                    match = find_closest(db, face.embedding)
+                    if lab and camera:
+                        outcome = record_entry(
+                            db, lab=lab, camera=camera, embedding=face.embedding, frame=frame
+                        )
+                        if outcome.logged:
+                            self.entries_logged += 1
 
-    def _publish(self, frame: np.ndarray, faces: list) -> None:
-        """Draw boxes and labels, then store the JPEG for the live view."""
+                    if match and match.similarity >= threshold:
+                        overlays.append(
+                            FaceOverlay(
+                                bbox=face.bbox,
+                                det_score=face.det_score,
+                                display_name=match.full_name,
+                                has_match=True,
+                                matched=True,
+                                similarity=match.similarity,
+                            )
+                        )
+                    else:
+                        overlays.append(
+                            FaceOverlay(
+                                bbox=face.bbox,
+                                det_score=face.det_score,
+                                display_name="Unknown",
+                                has_match=False,
+                                matched=False,
+                                similarity=None,
+                            )
+                        )
+        except Exception:
+            logger.exception("Could not process faces for camera %s.", self.camera_id)
+            if not overlays:
+                for face in faces:
+                    overlays.append(
+                        FaceOverlay(
+                            bbox=face.bbox,
+                            det_score=face.det_score,
+                            display_name="Unknown",
+                            has_match=False,
+                            matched=False,
+                            similarity=None,
+                        )
+                    )
+        return overlays
+
+    def _publish(self, frame: np.ndarray, faces: list[FaceOverlay]) -> None:
+        """Draw boxes and labels styled identically to Test Recognition, then store the JPEG."""
         annotated = frame
         if faces:
             annotated = frame.copy()
+            h, w = annotated.shape[:2]
+
             for face in faces:
                 x1, y1, x2, y2 = (int(v) for v in face.bbox)
-                cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 200, 0), 2)
+                matched = face.matched
+                has_match = face.has_match
+                name = face.display_name or "Unknown"
+                sim = face.similarity
+
+                # Color palette and text matching ImageWithBoxes.tsx:
+                # - Match (at or above threshold): Emerald-400 border, Emerald-600 badge, FullName · XX%
+                # - Below threshold / unregistered: White border, Gray-900 badge, "Unknown"
+                if matched and sim is not None:
+                    box_color = (153, 211, 52)      # Emerald-400
+                    outline_color = (20, 44, 2)     # Emerald-950
+                    badge_color = (105, 150, 5)     # Emerald-600
+                    text = f"{name} · {int(round(sim * 100))}%"
+                else:
+                    box_color = (255, 255, 255)     # White
+                    outline_color = (39, 24, 17)    # Gray-900
+                    badge_color = (39, 24, 17)      # Gray-900
+                    text = "Unknown"
+
+                # 1. Outer dark outline + Inner crisp box (matching border-2 outline-2)
+                cv2.rectangle(annotated, (x1 - 1, y1 - 1), (x2 + 1, y2 + 1), outline_color, 4)
+                cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, 2)
+
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 0.5
+                thickness = 1
+
+                (tw, th), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+                pad_x = 6
+                pad_y = 4
+                badge_w = tw + pad_x * 2
+                badge_h = th + pad_y * 2
+
+                # Collision check with top edge (matching isNearTop logic)
+                is_near_top = y1 < (badge_h + 8)
+                if is_near_top:
+                    badge_x1 = max(4, x1 + 4)
+                    badge_y1 = y1 + 4
+                else:
+                    badge_x1 = max(4, x1)
+                    badge_y1 = y1 - badge_h - 4
+
+                badge_x2 = min(w - 4, badge_x1 + badge_w)
+                badge_y2 = badge_y1 + badge_h
+
+                # Drop shadow / dark outline for badge (shadow-md)
+                cv2.rectangle(annotated, (badge_x1 - 1, badge_y1 - 1), (badge_x2 + 1, badge_y2 + 1), (15, 23, 42), -1)
+                # Badge pill background
+                cv2.rectangle(annotated, (badge_x1, badge_y1), (badge_x2, badge_y2), badge_color, -1)
+
+                # Text inside badge in crisp anti-aliased white
+                text_x = badge_x1 + pad_x
+                text_y = badge_y1 + pad_y + th
                 cv2.putText(
                     annotated,
-                    f"{face.det_score:.2f}",
-                    (x1, max(16, y1 - 6)),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    (0, 200, 0),
-                    1,
+                    text,
+                    (text_x, text_y),
+                    font,
+                    font_scale,
+                    (255, 255, 255),
+                    thickness,
+                    cv2.LINE_AA,
                 )
 
         ok, buf = cv2.imencode(
@@ -206,6 +352,8 @@ class CameraWorker(threading.Thread):
     def _set_connected(self, connected: bool, error: str | None) -> None:
         self.connected = connected
         self.last_error = error
+        if not connected:
+            self.buffer.clear()
         try:
             with session_scope() as db:
                 camera = db.get(Camera, self.camera_id)
