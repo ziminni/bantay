@@ -49,8 +49,17 @@ class FrameBuffer:
         self._event.set()
         self._event.clear()
 
-    def get(self) -> bytes | None:
+    def clear(self) -> None:
         with self._lock:
+            self.jpeg = None
+            self.updated_at = 0.0
+
+    def get(self, max_age: float = 2.5) -> bytes | None:
+        with self._lock:
+            if self.jpeg is None:
+                return None
+            if time.monotonic() - self.updated_at > max_age:
+                return None
             return self.jpeg
 
     def wait_for_new(self, timeout: float) -> bool:
@@ -97,6 +106,10 @@ class CameraWorker(threading.Thread):
                 cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
                 # Keep the decoder from queueing stale frames.
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                try:
+                    cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
+                except Exception:
+                    pass
 
                 if not cap.isOpened():
                     raise RuntimeError("could not open the stream")
@@ -119,47 +132,69 @@ class CameraWorker(threading.Thread):
 
             if self._stop.wait(backoff):
                 break
-            backoff = min(backoff * 2, settings.camera_reconnect_max_seconds)
+            backoff = min(backoff * 1.5, 6.0)
 
         self._set_connected(False, "stopped")
         logger.info("Camera worker %s stopped.", self.camera_id)
 
     # -- main loop ------------------------------------------------------
     def _loop(self, cap: cv2.VideoCapture) -> None:
-        interval = 1.0 / settings.camera_sample_fps
+        pub_interval = 1.0 / max(settings.stream_fps, 1.0)
         engine = get_engine()
-        last_fail = 0.0
+        last_fail = 0
+        last_pub = 0.0
+        last_recog = 0.0
+        recog_busy = False
+        recog_lock = threading.Lock()
+        active_faces: list = []
+        faces_lock = threading.Lock()
+
+        def run_recognition(recog_frame: np.ndarray) -> None:
+            nonlocal recog_busy, active_faces
+            try:
+                found_faces = engine.detect(recog_frame)
+                with faces_lock:
+                    active_faces = found_faces
+                if found_faces:
+                    self._handle_faces(found_faces, recog_frame)
+            except Exception:
+                logger.exception("Recognition failed on camera %s.", self.camera_id)
+            finally:
+                with recog_lock:
+                    recog_busy = False
 
         while not self._stop.is_set():
-            started = time.monotonic()
             ok, frame = cap.read()
 
             if not ok or frame is None:
                 last_fail += 1
                 if last_fail > 30:
                     raise RuntimeError("stream returned no frames")
-                time.sleep(0.1)
+                time.sleep(0.05)
                 continue
 
             last_fail = 0
             self.frames_read += 1
 
-            faces = []
+            now = time.monotonic()
             if self.role == CameraRole.ENTRY and engine.is_ready():
-                try:
-                    faces = engine.detect(frame)
-                except Exception:
-                    logger.exception("Recognition failed on camera %s.", self.camera_id)
-                    faces = []
+                with recog_lock:
+                    if not recog_busy and (now - last_recog >= 0.5):
+                        recog_busy = True
+                        last_recog = now
+                        threading.Thread(
+                            target=run_recognition,
+                            args=(frame.copy(),),
+                            daemon=True,
+                            name=f"recog-cam-{self.camera_id}",
+                        ).start()
 
-                if faces:
-                    self._handle_faces(faces, frame)
-
-            self._publish(frame, faces)
-
-            elapsed = time.monotonic() - started
-            if elapsed < interval:
-                time.sleep(interval - elapsed)
+            # Throttle publishing to stream_fps so cv2.imencode does not overwhelm CPU
+            if now - last_pub >= pub_interval:
+                last_pub = now
+                with faces_lock:
+                    current_faces = list(active_faces) if (now - last_recog <= 1.5) else []
+                self._publish(frame, current_faces)
 
     def _handle_faces(self, faces: list, frame: np.ndarray) -> None:
         """Apply the entry rules to each detected face, in its own transaction."""
@@ -206,6 +241,8 @@ class CameraWorker(threading.Thread):
     def _set_connected(self, connected: bool, error: str | None) -> None:
         self.connected = connected
         self.last_error = error
+        if not connected:
+            self.buffer.clear()
         try:
             with session_scope() as db:
                 camera = db.get(Camera, self.camera_id)
