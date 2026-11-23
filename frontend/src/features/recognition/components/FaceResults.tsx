@@ -36,7 +36,7 @@ export function FaceResults({ result }: { result: RecognizeResult }) {
                 </>
               )}
             </div>
-            <StatusBadge on={f.accepted}>{f.accepted ? 'Match' : 'Not a match'}</StatusBadge>
+            <StatusBadge tone={f.accepted ? 'success' : 'warning'}>{f.accepted ? 'Match' : 'Not a match'}</StatusBadge>
           </div>
 
           {f.match && (

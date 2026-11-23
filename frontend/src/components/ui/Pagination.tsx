@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { PAGE_SIZE_OPTIONS } from '@/lib/constants'
 import { Button } from './Button'
 
@@ -19,7 +20,7 @@ export function Pagination({ page, pages, total, size, onPageChange, onSizeChang
   return (
     <nav
       aria-label="Pagination"
-      className="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-3 border-t border-gray-100 px-5 py-3.5 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between sm:px-6"
     >
       <p>
         Showing <span className="font-medium text-gray-900">{from.toLocaleString()}</span>–
@@ -34,7 +35,7 @@ export function Pagination({ page, pages, total, size, onPageChange, onSizeChang
             <select
               value={size}
               onChange={(e) => onSizeChange(Number(e.target.value))}
-              className="h-8 rounded-md border border-gray-300 bg-white px-2 text-sm"
+              className="h-8 cursor-pointer rounded-lg border border-gray-200 bg-white px-2 text-sm text-navy-900 shadow-card"
             >
               {PAGE_SIZE_OPTIONS.map((n) => (
                 <option key={n} value={n}>
@@ -44,14 +45,15 @@ export function Pagination({ page, pages, total, size, onPageChange, onSizeChang
             </select>
           </label>
         )}
-        <Button size="sm" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
-          Previous
+        <Button size="sm" onClick={() => onPageChange(page - 1)} disabled={page <= 1} aria-label="Previous page" icon={<ChevronLeft />}>
+          <span className="hidden sm:inline">Previous</span>
         </Button>
-        <span className="whitespace-nowrap">
-          Page {page} of {pages}
+        <span className="whitespace-nowrap tabular-nums">
+          Page <span className="font-medium text-navy-900">{page}</span> of {pages}
         </span>
-        <Button size="sm" onClick={() => onPageChange(page + 1)} disabled={page >= pages}>
-          Next
+        <Button size="sm" onClick={() => onPageChange(page + 1)} disabled={page >= pages} aria-label="Next page">
+          <span className="hidden sm:inline">Next</span>
+          <ChevronRight />
         </Button>
       </div>
     </nav>

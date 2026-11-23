@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
@@ -40,22 +41,22 @@ export function Modal({ open, onClose, title, description, children, footer, siz
         if (e.target === ref.current) onClose()
       }}
       className={cn(
-        'm-auto w-[calc(100%-2rem)] rounded-lg border border-gray-200 bg-white p-0 text-gray-900 shadow-xl backdrop:bg-gray-900/40',
+        'm-auto w-[calc(100%-2rem)] rounded-2xl border border-gray-200 bg-white p-0 text-navy-900 shadow-overlay backdrop:bg-navy-950/50 open:animate-fade-in',
         widths[size],
       )}
     >
       {open && (
         <div className="flex max-h-[85vh] flex-col">
-          <header className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-4">
+          <header className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5">
             <div>
-              <h2 className="text-lg font-semibold">{title}</h2>
+              <h2 className="text-lg font-semibold text-navy-900">{title}</h2>
               {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
             </div>
             <CloseButton onClick={onClose} />
           </header>
           <div className="overflow-y-auto px-6 py-5">{children}</div>
           {footer && (
-            <footer className="flex flex-wrap justify-end gap-3 border-t border-gray-200 px-6 py-4">{footer}</footer>
+            <footer className="flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-gray-50/60 px-6 py-4">{footer}</footer>
           )}
         </div>
       )}
@@ -69,11 +70,9 @@ export function CloseButton({ onClick, label = 'Close' }: { onClick: () => void;
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="-mr-2 rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+      className="-mt-1 -mr-2 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-navy-900"
     >
-      <svg viewBox="0 0 20 20" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
-        <path d="M5 5l10 10M15 5L5 15" strokeLinecap="round" />
-      </svg>
+      <X className="size-5" aria-hidden />
     </button>
   )
 }

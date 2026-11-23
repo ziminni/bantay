@@ -1,3 +1,4 @@
+import { ImagePlus } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
 
@@ -36,8 +37,8 @@ export function FileDropzone({
         if (!disabled) onFiles(Array.from(e.dataTransfer.files))
       }}
       className={cn(
-        'rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors',
-        over ? 'border-gray-900 bg-gray-50' : 'border-gray-300',
+        'rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors',
+        over ? 'border-marigold-400 bg-marigold-50/60' : 'border-gray-300 bg-gray-50/50 hover:border-navy-300 hover:bg-white',
         disabled && 'opacity-50',
       )}
     >
@@ -55,9 +56,12 @@ export function FileDropzone({
         }}
       />
       <label htmlFor={id} className={cn('block', !disabled && 'cursor-pointer')}>
-        <span className="block text-sm font-medium text-gray-900">{label}</span>
+        <span className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-navy-700 shadow-card ring-1 ring-gray-200">
+          <ImagePlus className="size-5" aria-hidden />
+        </span>
+        <span className="block text-sm font-medium text-navy-900">{label}</span>
         {hint && <span className="mt-1 block text-sm text-gray-500">{hint}</span>}
-        <span className="mt-4 inline-flex h-8 items-center rounded-md border border-gray-300 bg-white px-3 text-sm font-medium hover:bg-gray-100">
+        <span className="mt-4 inline-flex h-8 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-navy-900 shadow-card hover:bg-gray-50">
           Choose files
         </span>
       </label>
