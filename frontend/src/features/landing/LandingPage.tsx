@@ -263,7 +263,7 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between">
           <Logo variant="lockup" className="h-9 w-auto self-start" />
           <div className="text-sm text-gray-500 md:text-right">
-            <p>A project by Jan Eduard Sanchez and Shauntie Velasco · Central Mindanao University</p>
+            <p>A project by the students of Central Mindanao University</p>
             <p className="mt-1 text-xs">For academic, non-commercial use, under the InsightFace model licence.</p>
           </div>
         </div>
