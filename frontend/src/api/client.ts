@@ -5,8 +5,8 @@ import { ApiError } from './errors'
 /**
  * The HTTP client for the Bantay API.
  *
- * Not used yet: while MOCK_MODE is on, src/api/*.ts read from src/mocks/.
- * When the backend is connected, every API function calls this client.
+ * Calls go to relative paths. Vite proxies them to FastAPI in development,
+ * nginx in production, so the browser only ever talks to one origin.
  */
 export const client = axios.create({
   baseURL: API_BASE_URL,

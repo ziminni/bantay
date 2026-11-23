@@ -1,66 +1,34 @@
 /**
  * Laboratories — /api/v1/labs
- *
- * Mock implementation. The real call is written above each function.
  */
-import { DEFAULT_COOLDOWN_SECONDS, DEFAULT_MATCH_THRESHOLD } from '@/lib/constants'
-import { db, findLab, nextId, toLabRead } from '@/mocks/store'
-import { fail, nowIso, respond } from '@/mocks/util'
+import { client, cleanParams } from './client'
 import type { LabCreate, LabRead, LabUpdate } from './types'
 
 /** GET /labs?active= */
 export async function listLabs(params: { active?: boolean } = {}): Promise<LabRead[]> {
-  const rows = db.labs
-    .filter((l) => params.active === undefined || l.active === params.active)
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map(toLabRead)
-  return respond(rows, 150)
+  const { data } = await client.get<LabRead[]>('/labs', { params: cleanParams(params) })
+  return data
 }
 
 /** GET /labs/{id} */
 export async function getLab(id: number): Promise<LabRead> {
-  const lab = findLab(id) ?? fail(404, 'Laboratory not found.')
-  return respond(toLabRead(lab))
+  const { data } = await client.get<LabRead>(`/labs/${id}`)
+  return data
 }
 
-/** POST /labs */
+/** POST /labs — threshold and cooldown fall back to the backend defaults when omitted. */
 export async function createLab(payload: LabCreate): Promise<LabRead> {
-  const name = payload.name.trim()
-  if (db.labs.some((l) => l.name === name)) {
-    fail(409, `A laboratory named '${name}' already exists.`)
-  }
-  const row = {
-    id: nextId('labs'),
-    name,
-    room: payload.room?.trim() || null,
-    open_time: payload.open_time ?? null,
-    close_time: payload.close_time ?? null,
-    match_threshold: payload.match_threshold ?? DEFAULT_MATCH_THRESHOLD,
-    cooldown_seconds: payload.cooldown_seconds ?? DEFAULT_COOLDOWN_SECONDS,
-    active: true,
-    created_at: nowIso(),
-  }
-  db.labs.push(row)
-  return respond(toLabRead(row))
+  const { data } = await client.post<LabRead>('/labs', payload)
+  return data
 }
 
 /** PATCH /labs/{id} */
 export async function updateLab(id: number, payload: LabUpdate): Promise<LabRead> {
-  const lab = findLab(id) ?? fail(404, 'Laboratory not found.')
-  if (payload.name && db.labs.some((l) => l.id !== id && l.name === payload.name)) {
-    fail(409, 'That laboratory name is already taken.')
-  }
-  Object.assign(lab, Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== undefined)))
-  return respond(toLabRead(lab))
+  const { data } = await client.patch<LabRead>(`/labs/${id}`, payload)
+  return data
 }
 
 /** DELETE /labs/{id} — refused when entry logs reference the lab. */
 export async function deleteLab(id: number): Promise<void> {
-  if (!findLab(id)) fail(404, 'Laboratory not found.')
-  if (db.entries.some((e) => e.lab_id === id)) {
-    fail(409, 'This laboratory has entry logs and cannot be deleted. Set active=false instead.')
-  }
-  db.labs = db.labs.filter((l) => l.id !== id)
-  db.cameras = db.cameras.filter((c) => c.lab_id !== id)
-  return respond(undefined)
+  await client.delete(`/labs/${id}`)
 }

@@ -3,9 +3,9 @@
 The administrator dashboard for Bantay: React 19, TypeScript, Vite, Tailwind CSS,
 React Router, Recharts.
 
-> **Status:** layout and behaviour only — no visual design yet (neutral greys,
-> system font). Not connected to the backend: every page runs on sample data
-> from `src/mocks/`. There is no login yet.
+> **Status:** connected to the backend via Vite dev proxy (`/api` and `/media`
+> -> `http://127.0.0.1:8000`). Layout and behaviour only — no visual design yet
+> (neutral greys, system font). There is no login yet.
 
 ## Running it
 
@@ -50,15 +50,12 @@ Rules of thumb: pages import from `api/`, never from `mocks/`; a component used
 by one page lives in that page's `features/<page>/components/`; filters on list
 pages live in the URL, so a filtered view survives a reload and can be shared.
 
-## Connecting the backend (later)
+## Backend connection
 
-1. In each `src/api/*.ts`, replace the mock body with a `client` call to the
-   endpoint named in the comment above the function, e.g.
-   `return (await client.get('/labs', { params })).data`. Signatures stay the same,
-   so no page changes.
-2. Set `MOCK_MODE = false` in `src/config.ts` — this switches the live view and
-   snapshots to the real MJPEG stream and media URLs.
-3. Proxy `/api` and `/media` to FastAPI: in development add a `server.proxy`
-   entry in `vite.config.ts`; in production nginx does it.
+The frontend communicates with the backend via relative URLs (`/api/v1` and `/media`):
+- In development, Vite forwards requests via `server.proxy` configured in `vite.config.ts` (default `http://127.0.0.1:8000`, overridable via `VITE_BACKEND_URL`).
+- In production, nginx forwards these paths to the FastAPI application.
+- `MOCK_MODE` is disabled (`false`) in `src/config.ts`.
+- The sample data in `src/mocks/` is retained for reference.
 
 All times are shown in `Asia/Manila`.
