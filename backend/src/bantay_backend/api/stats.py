@@ -42,10 +42,15 @@ def stats_today(
     lab_id: int | None = Query(None, description="Restrict the figures to one laboratory."),
     latest: int = Query(10, ge=0, le=50, description="How many recent entries to include."),
 ) -> TodayStats:
-    now = dt.datetime.now(dt.UTC)
-    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    # 'Today' means the local day in the department's time zone, not the UTC day.
+    # Timestamps stay in UTC; only the window and the hour buckets are converted.
+    tz = settings.tzinfo
+    now_local = dt.datetime.now(tz)
+    start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    start = start_local.astimezone(dt.UTC)
+    end = (start_local + dt.timedelta(days=1)).astimezone(dt.UTC)
 
-    base = select(EntryLog).where(EntryLog.entered_at >= start)
+    base = select(EntryLog).where(EntryLog.entered_at >= start, EntryLog.entered_at < end)
     if lab_id is not None:
         base = base.where(EntryLog.lab_id == lab_id)
     sub = base.subquery()
@@ -66,10 +71,11 @@ def stats_today(
         or 0
     )
 
+    # timezone(zone, timestamptz) converts to local wall-clock time before the
+    # hour is taken, so the buckets line up with the clock on the wall.
+    local_hour = func.extract("hour", func.timezone(settings.timezone, sub.c.entered_at))
     hour_rows = db.execute(
-        select(func.extract("hour", sub.c.entered_at).label("h"), func.count())
-        .group_by("h")
-        .order_by("h")
+        select(local_hour.label("h"), func.count()).group_by("h").order_by("h")
     ).all()
     counts_by_hour = {int(h): int(n) for h, n in hour_rows}
     entries_per_hour = [
@@ -101,7 +107,7 @@ def stats_today(
             .join(Lab, Lab.id == EntryLog.lab_id)
             .outerjoin(Person, Person.id == EntryLog.person_id)
             .outerjoin(cam, cam.id == EntryLog.camera_id)
-            .where(EntryLog.entered_at >= start)
+            .where(EntryLog.entered_at >= start, EntryLog.entered_at < end)
             .where(EntryLog.lab_id == lab_id if lab_id is not None else True)
             .order_by(EntryLog.entered_at.desc())
             .limit(latest)
@@ -132,7 +138,7 @@ def stats_today(
         ]
 
     return TodayStats(
-        date=now.date(),
+        date=now_local.date(),
         entries_today=int(entries_today),
         distinct_persons_today=int(distinct_persons),
         unknown_today=int(unknown_today),
