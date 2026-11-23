@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      host: true,
       // The app calls relative paths (/api/v1, /media), so in development Vite
       // forwards them to FastAPI. In production nginx does the same job.
       proxy: {
