@@ -67,6 +67,18 @@ class FrameBuffer:
         return self._event.wait(timeout)
 
 
+@dataclass(slots=True)
+class FaceOverlay:
+    """Carries face bounding box and match metadata for stream annotation."""
+
+    bbox: tuple[float, float, float, float]
+    det_score: float
+    display_name: str = "Unknown"
+    has_match: bool = False
+    matched: bool = False
+    similarity: float | None = None
+
+
 def _placeholder_jpeg(text: str, width: int = 640, height: int = 360) -> bytes:
     """A grey frame with a message, shown when a camera has no picture."""
     img = np.full((height, width, 3), 40, dtype=np.uint8)
@@ -154,10 +166,11 @@ class CameraWorker(threading.Thread):
             nonlocal recog_busy, active_faces
             try:
                 found_faces = engine.detect(recog_frame)
-                with faces_lock:
-                    active_faces = found_faces
+                overlays: list[FaceOverlay] = []
                 if found_faces:
-                    self._handle_faces(found_faces, recog_frame)
+                    overlays = self._handle_faces(found_faces, recog_frame)
+                with faces_lock:
+                    active_faces = overlays
             except Exception:
                 logger.exception("Recognition failed on camera %s.", self.camera_id)
             finally:
@@ -197,48 +210,66 @@ class CameraWorker(threading.Thread):
                     current_faces = list(active_faces) if (now - last_recog <= 1.5) else []
                 self._publish(frame, current_faces)
 
-    def _handle_faces(self, faces: list, frame: np.ndarray) -> None:
+    def _handle_faces(self, faces: list, frame: np.ndarray) -> list[FaceOverlay]:
         """Apply the entry rules to each detected face, in its own transaction."""
-        for face in faces:
-            # Default fallback attributes
-            face.display_name = "Unknown"
-            face.matched = False
-            face.has_match = False
-            face.similarity = None
-
+        overlays: list[FaceOverlay] = []
         try:
             with session_scope() as db:
                 lab = db.get(Lab, self.lab_id)
                 camera = db.get(Camera, self.camera_id)
-                if lab is None or camera is None:
-                    return
                 threshold = (
                     lab.match_threshold
-                    if lab.match_threshold is not None
+                    if lab and lab.match_threshold is not None
                     else settings.default_match_threshold
                 )
                 for face in faces:
-                    outcome = record_entry(
-                        db, lab=lab, camera=camera, embedding=face.embedding, frame=frame
-                    )
                     match = find_closest(db, face.embedding)
+                    if lab and camera:
+                        outcome = record_entry(
+                            db, lab=lab, camera=camera, embedding=face.embedding, frame=frame
+                        )
+                        if outcome.logged:
+                            self.entries_logged += 1
+
                     if match:
-                        face.display_name = match.full_name
-                        face.has_match = True
-                        face.similarity = match.similarity
-                        face.matched = match.similarity >= threshold
+                        overlays.append(
+                            FaceOverlay(
+                                bbox=face.bbox,
+                                det_score=face.det_score,
+                                display_name=match.full_name,
+                                has_match=True,
+                                matched=bool(match.similarity >= threshold),
+                                similarity=match.similarity,
+                            )
+                        )
                     else:
-                        face.display_name = "Unknown"
-                        face.has_match = False
-                        face.matched = False
-                        face.similarity = None
-
-                    if outcome.logged:
-                        self.entries_logged += 1
+                        overlays.append(
+                            FaceOverlay(
+                                bbox=face.bbox,
+                                det_score=face.det_score,
+                                display_name="Unknown",
+                                has_match=False,
+                                matched=False,
+                                similarity=None,
+                            )
+                        )
         except Exception:
-            logger.exception("Could not write the entry for camera %s.", self.camera_id)
+            logger.exception("Could not process faces for camera %s.", self.camera_id)
+            if not overlays:
+                for face in faces:
+                    overlays.append(
+                        FaceOverlay(
+                            bbox=face.bbox,
+                            det_score=face.det_score,
+                            display_name="Unknown",
+                            has_match=False,
+                            matched=False,
+                            similarity=None,
+                        )
+                    )
+        return overlays
 
-    def _publish(self, frame: np.ndarray, faces: list) -> None:
+    def _publish(self, frame: np.ndarray, faces: list[FaceOverlay]) -> None:
         """Draw boxes and labels styled identically to Test Recognition, then store the JPEG."""
         annotated = frame
         if faces:
@@ -247,10 +278,10 @@ class CameraWorker(threading.Thread):
 
             for face in faces:
                 x1, y1, x2, y2 = (int(v) for v in face.bbox)
-                matched = getattr(face, "matched", False)
-                has_match = getattr(face, "has_match", False)
-                name = getattr(face, "display_name", None) or "Unknown"
-                sim = getattr(face, "similarity", None)
+                matched = face.matched
+                has_match = face.has_match
+                name = face.display_name or "Unknown"
+                sim = face.similarity
 
                 # Color palette matching ImageWithBoxes.tsx:
                 # - isMatch: border-emerald-400 (BGR: 153, 211, 52), outline-emerald-950 (BGR: 20, 44, 2), bg-emerald-600 (BGR: 105, 150, 5)
