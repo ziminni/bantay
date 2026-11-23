@@ -18,6 +18,8 @@ const router = createBrowserRouter([
     children: [
       { path: 'dashboard', lazy: () => import('@/features/dashboard/DashboardPage').then((m) => ({ Component: m.DashboardPage })) },
       { path: 'live', lazy: () => import('@/features/live-view/LiveViewPage').then((m) => ({ Component: m.LiveViewPage })) },
+      { path: 'wall', lazy: () => import('@/features/camera-wall/CameraWallPage').then((m) => ({ Component: m.CameraWallPage })) },
+      { path: 'wall/:labId', lazy: () => import('@/features/camera-wall/LabWallPage').then((m) => ({ Component: m.LabWallPage })) },
       { path: 'enroll', lazy: () => import('@/features/enroll/EnrollPage').then((m) => ({ Component: m.EnrollPage })) },
       { path: 'logs', lazy: () => import('@/features/entry-logs/LogsPage').then((m) => ({ Component: m.LogsPage })) },
       { path: 'users', lazy: () => import('@/features/users/UsersPage').then((m) => ({ Component: m.UsersPage })) },

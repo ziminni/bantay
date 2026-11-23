@@ -14,11 +14,14 @@ export function CameraFeed({
   camera,
   className,
   fill = false,
+  chrome = true,
 }: {
   camera: CameraRead
   className?: string
   /** Fill the parent instead of keeping a 16:9 box (used in full-screen mode). */
   fill?: boolean
+  /** Draw the LIVE label and the scan brackets. The camera wall draws its own overlay instead. */
+  chrome?: boolean
 }) {
   const [broken, setBroken] = useState(false)
 
@@ -52,13 +55,15 @@ export function CameraFeed({
             className="absolute inset-0 size-full object-contain"
             onError={() => setBroken(true)}
           />
-          <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-md bg-navy-950/70 px-2 py-1 text-[11px] font-semibold tracking-wider text-cream uppercase backdrop-blur-sm">
-            <span className="size-1.5 animate-pulse rounded-full bg-red-500" aria-hidden />
-            Live
-          </span>
+          {chrome && (
+            <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-md bg-navy-950/70 px-2 py-1 text-[11px] font-semibold tracking-wider text-cream uppercase backdrop-blur-sm">
+              <span className="size-1.5 animate-pulse rounded-full bg-red-500" aria-hidden />
+              Live
+            </span>
+          )}
         </>
       )}
-      <ScanBrackets withTopLeft={Boolean(reason)} />
+      {chrome && <ScanBrackets withTopLeft={Boolean(reason)} />}
     </div>
   )
 }

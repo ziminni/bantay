@@ -1,4 +1,4 @@
-import { Cctv, LayoutDashboard, Monitor, ScanFace, ScanSearch, ScrollText, Users, type LucideIcon } from 'lucide-react'
+import { Cctv, LayoutDashboard, Monitor, MonitorPlay, ScanFace, ScanSearch, ScrollText, Users, type LucideIcon } from 'lucide-react'
 
 export interface NavItem {
   to: string
@@ -25,6 +25,7 @@ export const NAVIGATION: NavGroup[] = [
     label: 'Monitoring',
     items: [
       { to: '/live', label: 'Live View', description: 'Watch the lab cameras', icon: Cctv },
+      { to: '/wall', label: 'Camera Wall', description: 'Every camera in a lab at once', icon: MonitorPlay },
       { to: '/logs', label: 'Entry Logs', description: 'Search the entry history', icon: ScrollText },
     ],
   },
