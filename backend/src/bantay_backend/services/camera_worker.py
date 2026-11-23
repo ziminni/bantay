@@ -231,14 +231,14 @@ class CameraWorker(threading.Thread):
                         if outcome.logged:
                             self.entries_logged += 1
 
-                    if match:
+                    if match and match.similarity >= threshold:
                         overlays.append(
                             FaceOverlay(
                                 bbox=face.bbox,
                                 det_score=face.det_score,
                                 display_name=match.full_name,
                                 has_match=True,
-                                matched=bool(match.similarity >= threshold),
+                                matched=True,
                                 similarity=match.similarity,
                             )
                         )
@@ -283,32 +283,23 @@ class CameraWorker(threading.Thread):
                 name = face.display_name or "Unknown"
                 sim = face.similarity
 
-                # Color palette matching ImageWithBoxes.tsx:
-                # - isMatch: border-emerald-400 (BGR: 153, 211, 52), outline-emerald-950 (BGR: 20, 44, 2), bg-emerald-600 (BGR: 105, 150, 5)
-                # - low confidence (has_match): border-white (BGR: 255, 255, 255), outline-gray-900 (BGR: 39, 24, 17), bg-amber-600 (BGR: 6, 119, 217)
-                # - unknown: border-white (BGR: 255, 255, 255), outline-gray-900 (BGR: 39, 24, 17), bg-gray-900 (BGR: 39, 24, 17)
-                if matched:
+                # Color palette and text matching ImageWithBoxes.tsx:
+                # - Match (at or above threshold): Emerald-400 border, Emerald-600 badge, FullName · XX%
+                # - Below threshold / unregistered: White border, Gray-900 badge, "Unknown"
+                if matched and sim is not None:
                     box_color = (153, 211, 52)      # Emerald-400
                     outline_color = (20, 44, 2)     # Emerald-950
                     badge_color = (105, 150, 5)     # Emerald-600
-                elif has_match:
-                    box_color = (255, 255, 255)     # White
-                    outline_color = (39, 24, 17)    # Gray-900
-                    badge_color = (6, 119, 217)     # Amber-600
+                    text = f"{name} · {int(round(sim * 100))}%"
                 else:
                     box_color = (255, 255, 255)     # White
                     outline_color = (39, 24, 17)    # Gray-900
                     badge_color = (39, 24, 17)      # Gray-900
+                    text = "Unknown"
 
                 # 1. Outer dark outline + Inner crisp box (matching border-2 outline-2)
                 cv2.rectangle(annotated, (x1 - 1, y1 - 1), (x2 + 1, y2 + 1), outline_color, 4)
                 cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, 2)
-
-                # 2. Text layout
-                if has_match and sim is not None:
-                    text = f"{name} · {int(round(sim * 100))}%"
-                else:
-                    text = name
 
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 font_scale = 0.5

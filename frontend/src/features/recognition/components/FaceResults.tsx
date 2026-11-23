@@ -18,7 +18,7 @@ export function FaceResults({ result }: { result: RecognizeResult }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs text-gray-500">Face {i + 1}</p>
-              {f.match ? (
+              {f.accepted && f.match ? (
                 <>
                   <Link to={`/users/${f.match.person_id}`} className="font-medium text-gray-900 hover:underline">
                     {f.match.full_name}
@@ -26,7 +26,14 @@ export function FaceResults({ result }: { result: RecognizeResult }) {
                   <p className="text-sm text-gray-500">{f.match.id_number}</p>
                 </>
               ) : (
-                <p className="font-medium text-gray-500">No one enrolled yet</p>
+                <>
+                  <p className="font-medium text-gray-900">Unknown person</p>
+                  {f.match && (
+                    <p className="text-xs text-gray-500">
+                      Below threshold (closest: {f.match.full_name})
+                    </p>
+                  )}
+                </>
               )}
             </div>
             <StatusBadge on={f.accepted}>{f.accepted ? 'Match' : 'Not a match'}</StatusBadge>

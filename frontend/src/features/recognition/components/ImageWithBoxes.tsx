@@ -20,8 +20,8 @@ export function ImageWithBoxes({ src, faces }: { src: string; faces: DetectedFac
           faces.map((f, i) => {
             const [x1, y1, x2, y2] = f.bbox
             const isNearTop = y1 / size.h < 0.08
-            const name = f.match?.full_name ?? 'Unknown'
-            const isMatch = f.accepted && f.match
+            const isMatch = Boolean(f.accepted && f.match)
+            const name = isMatch && f.match ? f.match.full_name : 'Unknown'
 
             return (
               <div
@@ -44,14 +44,18 @@ export function ImageWithBoxes({ src, faces }: { src: string; faces: DetectedFac
                   } ${
                     isMatch
                       ? 'bg-emerald-600 text-white'
-                      : f.match
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-gray-900 text-white'
+                      : 'bg-gray-900 text-white'
                   }`}
-                  title={f.match ? `${name} (${formatSimilarity(f.match.similarity)})` : name}
+                  title={
+                    isMatch && f.match
+                      ? `${name} (${formatSimilarity(f.match.similarity)})`
+                      : f.match
+                        ? `Unknown (closest: ${f.match.full_name} · ${Math.round(f.match.similarity * 100)}%)`
+                        : 'Unknown'
+                  }
                 >
                   {name}
-                  {f.match && (
+                  {isMatch && f.match && (
                     <span className="ml-1 opacity-80 text-[10px] font-normal">
                       · {Math.round(f.match.similarity * 100)}%
                     </span>
