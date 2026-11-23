@@ -8,26 +8,36 @@ export interface NavItem {
 }
 
 export interface NavGroup {
-  label?: string
+  label: string
   items: NavItem[]
 }
 
-/** The sidebar. The six main pages follow the project documentation. */
+/**
+ * The sidebar. Every page sits under a category; the six main pages follow
+ * the project documentation, plus the recognition test tool.
+ */
 export const NAVIGATION: NavGroup[] = [
   {
+    label: 'Overview',
+    items: [{ to: '/', label: 'Dashboard', description: "Today's entries and statistics", icon: LayoutDashboard }],
+  },
+  {
+    label: 'Monitoring',
     items: [
-      { to: '/', label: 'Dashboard', description: "Today's entries and statistics", icon: LayoutDashboard },
-      { to: '/live', label: 'Live View', description: 'Camera feeds', icon: Cctv },
-      { to: '/enroll', label: 'Enroll', description: 'Register a face', icon: ScanFace },
-      { to: '/logs', label: 'Entry Logs', description: 'Search entry history', icon: ScrollText },
+      { to: '/live', label: 'Live View', description: 'Watch the lab cameras', icon: Cctv },
+      { to: '/logs', label: 'Entry Logs', description: 'Search the entry history', icon: ScrollText },
     ],
   },
   {
-    label: 'Manage',
+    label: 'People',
     items: [
+      { to: '/enroll', label: 'Enroll', description: "Register a person's face", icon: ScanFace },
       { to: '/users', label: 'Users', description: 'Students, faculty and staff', icon: Users },
-      { to: '/labs', label: 'Labs', description: 'Laboratories and cameras', icon: Monitor },
     ],
+  },
+  {
+    label: 'Facilities',
+    items: [{ to: '/labs', label: 'Labs', description: 'Laboratories and their cameras', icon: Monitor }],
   },
   {
     label: 'Tools',
