@@ -4,6 +4,7 @@ import { createPerson, listPersons, updatePerson } from '@/api/persons'
 import type { PersonRead } from '@/api/types'
 import { CONSENT_TEXT, PersonForm } from '@/components/common/PersonForm'
 import { Alert } from '@/components/ui/Alert'
+import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Checkbox, SearchInput } from '@/components/ui/Input'
 import { LoadingState } from '@/components/ui/LoadingState'
@@ -21,7 +22,7 @@ export function PersonStep({ onDone }: { onDone: (person: PersonRead) => void })
 
   return (
     <div className="space-y-6">
-      <div role="tablist" aria-label="Who are you enrolling?" className="inline-flex rounded-md border border-gray-300 p-1">
+      <div role="tablist" aria-label="Who are you enrolling?" className="inline-flex rounded-xl bg-gray-100 p-1 ring-1 ring-gray-200/60">
         {(
           [
             ['existing', 'Existing person'],
@@ -35,8 +36,8 @@ export function PersonStep({ onDone }: { onDone: (person: PersonRead) => void })
             aria-selected={mode === value}
             onClick={() => setMode(value)}
             className={cn(
-              'rounded px-4 py-1.5 text-sm',
-              mode === value ? 'bg-gray-900 font-medium text-white' : 'text-gray-700 hover:bg-gray-100',
+              'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+              mode === value ? 'bg-white text-navy-900 shadow-card' : 'text-gray-500 hover:text-navy-900',
             )}
           >
             {label}
@@ -91,15 +92,18 @@ function ExistingPerson({ onDone, onCreateNew }: { onDone: (p: PersonRead) => vo
       {results.loading && !results.data ? (
         <LoadingState />
       ) : results.data && results.data.items.length > 0 ? (
-        <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+        <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
           {results.data.items.map((p) => (
-            <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <p className="font-medium text-gray-900">{p.full_name}</p>
-                <p className="text-sm text-gray-500">
-                  {p.id_number} · {PERSON_TYPE_LABELS[p.person_type]} · {pluralize(p.embedding_count, 'photo')}
-                  {!p.consent_given && ' · No consent'}
-                </p>
+            <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-gray-50">
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar name={p.full_name} size="md" />
+                <div className="min-w-0">
+                  <p className="font-medium text-navy-900">{p.full_name}</p>
+                  <p className="text-sm text-gray-500">
+                    {p.id_number} · {PERSON_TYPE_LABELS[p.person_type]} · {pluralize(p.embedding_count, 'photo')}
+                    {!p.consent_given && ' · No consent'}
+                  </p>
+                </div>
               </div>
               <Button size="sm" onClick={() => setSelected(p)}>
                 Select
@@ -113,9 +117,9 @@ function ExistingPerson({ onDone, onCreateNew }: { onDone: (p: PersonRead) => vo
           )}
         </ul>
       ) : (
-        <div className="rounded-md border border-gray-200 px-4 py-6 text-center text-sm text-gray-500">
+        <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
           No one found.{' '}
-          <button type="button" onClick={onCreateNew} className="font-medium text-gray-900 underline">
+          <button type="button" onClick={onCreateNew} className="font-medium text-navy-900 underline decoration-marigold-400 decoration-2 underline-offset-2">
             Register a new person
           </button>
         </div>
@@ -143,12 +147,15 @@ function ConfirmPerson({ person, onBack, onDone }: { person: PersonRead; onBack:
 
   return (
     <div className="space-y-5">
-      <div className="rounded-md border border-gray-200 px-4 py-3">
-        <p className="font-medium text-gray-900">{person.full_name}</p>
-        <p className="text-sm text-gray-500">
-          {person.id_number} · {PERSON_TYPE_LABELS[person.person_type]} · {pluralize(person.embedding_count, 'face photo')} on
-          file
-        </p>
+      <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3">
+        <Avatar name={person.full_name} size="md" />
+        <div className="min-w-0">
+          <p className="font-medium text-navy-900">{person.full_name}</p>
+          <p className="text-sm text-gray-500">
+            {person.id_number} · {PERSON_TYPE_LABELS[person.person_type]} ·{' '}
+            {pluralize(person.embedding_count, 'face photo')} on file
+          </p>
+        </div>
       </div>
 
       {!person.consent_given && (

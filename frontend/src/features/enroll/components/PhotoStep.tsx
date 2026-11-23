@@ -4,6 +4,7 @@ import { enrollFaces } from '@/api/persons'
 import type { EnrollmentResult, PersonRead } from '@/api/types'
 import { PhotoUploader } from '@/components/common/PhotoUploader'
 import { Alert } from '@/components/ui/Alert'
+import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { MAX_ENROLLMENT_PHOTOS, MIN_ENROLLMENT_PHOTOS, PERSON_TYPE_LABELS } from '@/lib/constants'
 import { pluralize } from '@/lib/format'
@@ -53,12 +54,16 @@ export function PhotoStep({ person, onBack, onDone }: PhotoStepProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-gray-200 px-4 py-3">
-        <div>
-          <p className="font-medium text-gray-900">{person.full_name}</p>
-          <p className="text-sm text-gray-500">
-            {person.id_number} · {PERSON_TYPE_LABELS[person.person_type]} · {pluralize(person.embedding_count, 'face photo')} on file
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar name={person.full_name} size="md" />
+          <div className="min-w-0">
+            <p className="font-medium text-navy-900">{person.full_name}</p>
+            <p className="text-sm text-gray-500">
+              {person.id_number} · {PERSON_TYPE_LABELS[person.person_type]} ·{' '}
+              {pluralize(person.embedding_count, 'face photo')} on file
+            </p>
+          </div>
         </div>
         <Button size="sm" variant="ghost" onClick={onBack} disabled={uploading}>
           Change person

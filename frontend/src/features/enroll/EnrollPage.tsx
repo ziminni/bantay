@@ -1,3 +1,4 @@
+import { ImagePlus, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getPerson } from '@/api/persons'
@@ -69,9 +70,13 @@ export function EnrollPage() {
             <div className="space-y-6">
               <EnrollmentResultView result={result} />
               <div className="flex flex-wrap justify-end gap-3 border-t border-gray-200 pt-6">
-                {!result.meets_minimum && <Button onClick={addMore}>Add more photos</Button>}
+                {!result.meets_minimum && (
+                  <Button onClick={addMore} icon={<ImagePlus />}>
+                    Add more photos
+                  </Button>
+                )}
                 <ButtonLink to={`/users/${person.id}`}>View record</ButtonLink>
-                <Button variant="primary" onClick={restart}>
+                <Button variant="primary" onClick={restart} icon={<UserPlus />}>
                   Enroll another person
                 </Button>
               </div>
