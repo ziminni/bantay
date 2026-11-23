@@ -1,10 +1,11 @@
+import { ArrowRight, BarChart3, Cctv, DoorOpen, Monitor, ScanFace, ScrollText, UserRoundCheck } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { getTodayStats } from '@/api/stats'
 import { LabSelect } from '@/components/common/selects'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ButtonLink } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
-import { LoadingState } from '@/components/ui/LoadingState'
+import { Skeleton } from '@/components/ui/LoadingState'
 import { Section } from '@/components/ui/Section'
 import { StatCard } from '@/components/ui/StatCard'
 import { DASHBOARD_REFRESH_MS } from '@/config'
@@ -31,7 +32,7 @@ export function DashboardPage() {
         title="Dashboard"
         description={`${datePrefix(stats.data?.date)}Updates every ${DASHBOARD_REFRESH_MS / 1000} seconds`}
         actions={
-          <div className="w-full sm:w-56">
+          <div className="w-full sm:w-60">
             <label htmlFor="dashboard-lab" className="sr-only">
               Laboratory
             </label>
@@ -45,37 +46,54 @@ export function DashboardPage() {
       />
 
       {stats.loading && !s ? (
-        <LoadingState />
+        <DashboardSkeleton />
       ) : stats.error && !s ? (
-        <ErrorState error={stats.error} onRetry={stats.reload} />
+        <Section>
+          <ErrorState error={stats.error} onRetry={stats.reload} />
+        </Section>
       ) : s ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard label="Entries today" value={s.entries_today.toLocaleString()} />
-            <StatCard label="People today" value={s.distinct_persons_today.toLocaleString()} hint="Recognized, counted once" />
-            <StatCard label="Unknown faces" value={s.unknown_today.toLocaleString()} hint="Not enrolled" />
+        <div className="animate-fade-in space-y-6">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
+            <StatCard featured label="Entries today" value={s.entries_today.toLocaleString()} hint="Every walk-in, all labs" icon={<DoorOpen />} />
+            <StatCard
+              label="People today"
+              value={s.distinct_persons_today.toLocaleString()}
+              hint="Recognized, counted once"
+              icon={<UserRoundCheck />}
+            />
+            <StatCard label="Unknown faces" value={s.unknown_today.toLocaleString()} hint="Not enrolled" icon={<ScanFace />} />
             <StatCard
               label="Cameras online"
               value={`${s.cameras_online} / ${s.cameras_total}`}
-              hint={s.cameras_online < s.cameras_total ? 'Some cameras need attention' : 'All cameras working'}
+              hint={s.cameras_online < s.cameras_total ? 'Some need attention' : 'All cameras working'}
+              alert={s.cameras_online < s.cameras_total}
+              icon={<Cctv />}
             />
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            <Section title="Entries per hour" className="lg:col-span-2">
+            <Section
+              title="Entries per hour"
+              description="When people walked in today"
+              icon={<BarChart3 />}
+              className="lg:col-span-2"
+            >
               <EntriesPerHourChart data={s.entries_per_hour} />
             </Section>
-            <Section title="Entries per lab" description="Today">
+            <Section title="Entries per lab" description="Today" icon={<Monitor />}>
               <LabTotalsList totals={labId ? s.per_lab.filter((t) => t.lab_id === labId) : s.per_lab} />
             </Section>
           </div>
 
           <Section
             title="Latest entries"
+            description="The ten most recent, newest first"
+            icon={<ScrollText />}
             flush
             actions={
-              <ButtonLink to={labId ? `/logs?lab_id=${labId}` : '/logs'} size="sm">
+              <ButtonLink to={labId ? `/logs?lab_id=${labId}` : '/logs'} size="sm" variant="ghost">
                 View all logs
+                <ArrowRight />
               </ButtonLink>
             }
           >
@@ -84,5 +102,21 @@ export function DashboardPage() {
         </div>
       ) : null}
     </>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div role="status" aria-label="Loading the dashboard" className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-36 rounded-2xl" />
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Skeleton className="h-80 rounded-2xl lg:col-span-2" />
+        <Skeleton className="h-80 rounded-2xl" />
+      </div>
+    </div>
   )
 }
