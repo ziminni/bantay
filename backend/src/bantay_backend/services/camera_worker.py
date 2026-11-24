@@ -89,6 +89,19 @@ def _placeholder_jpeg(text: str, width: int = 640, height: int = 360) -> bytes:
     return buf.tobytes() if ok else b""
 
 
+def _open_capture(url: str) -> cv2.VideoCapture:
+    """Open a video capture stream using the best available backend.
+    
+    Tries default auto-selection (CAP_ANY) first so MJPEG/HTTP and RTSP
+    streams open cleanly across macOS and Linux, falling back to CAP_FFMPEG.
+    """
+    cap = cv2.VideoCapture(url)
+    if not cap.isOpened() and hasattr(cv2, "CAP_FFMPEG"):
+        cap.release()
+        cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+    return cap
+
+
 class CameraWorker(threading.Thread):
     """Reads one camera and logs the entries it sees."""
 
@@ -116,7 +129,7 @@ class CameraWorker(threading.Thread):
         while not self._stop.is_set():
             cap = None
             try:
-                cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+                cap = _open_capture(self.rtsp_url)
                 # Keep the decoder from queueing stale frames.
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 try:
@@ -473,7 +486,7 @@ def probe_camera(rtsp_url: str, timeout: float | None = None) -> tuple[bool, dic
     started = time.monotonic()
     cap = None
     try:
-        cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+        cap = _open_capture(rtsp_url)
         if not cap.isOpened():
             return False, {"detail": "Could not open the stream."}
         ok, frame = cap.read()
