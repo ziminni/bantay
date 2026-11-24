@@ -291,7 +291,7 @@ export function WebcamCapture({
   return (
     <div className="space-y-4">
       {/* Viewfinder Card */}
-      <div className="relative aspect-[4/3] w-full max-w-xl mx-auto overflow-hidden rounded-xl bg-gray-950 border border-gray-800 shadow-lg">
+      <div className="relative aspect-[4/3] w-full max-w-xl mx-auto overflow-hidden rounded-2xl bg-navy-950 border border-navy-800 shadow-raised">
         {/* Live video */}
         <video
           ref={videoRef}
@@ -342,7 +342,7 @@ export function WebcamCapture({
             className="absolute inset-0 z-40 pointer-events-none transition-colors duration-75 flex items-center justify-center"
             style={{ backgroundColor: flashColor, opacity: 0.95 }}
           >
-            <div className="rounded-full bg-black/60 px-4 py-1.5 text-xs font-semibold text-white tracking-wide shadow-lg">
+            <div className="rounded-full bg-navy-950/60 px-4 py-1.5 text-xs font-semibold text-white tracking-wide shadow-lg">
               ✨ Liveness Flash Reflection
             </div>
           </div>
@@ -356,22 +356,22 @@ export function WebcamCapture({
               className={cn(
                 'relative w-44 h-60 sm:w-52 sm:h-72 rounded-[50%] border-2 transition-all duration-200 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]',
                 countdown
-                  ? 'border-amber-400 scale-105 shadow-[0_0_20px_rgba(251,191,36,0.5),0_0_0_9999px_rgba(0,0,0,0.65)]'
+                  ? 'border-marigold-400 scale-105 shadow-[0_0_20px_rgba(251,191,36,0.5),0_0_0_9999px_rgba(0,0,0,0.65)]'
                   : flashColor
                     ? 'border-white scale-110 shadow-[0_0_30px_rgba(255,255,255,0.8),0_0_0_9999px_rgba(0,0,0,0.7)]'
-                    : 'border-white/70 border-dashed hover:border-cyan-400',
+                    : 'border-white/70 border-dashed hover:border-marigold-400',
               )}
             >
               {/* Corner alignment brackets */}
-              <div className="absolute -top-1 -left-1 size-3 border-t-2 border-l-2 border-cyan-400" />
-              <div className="absolute -top-1 -right-1 size-3 border-t-2 border-r-2 border-cyan-400" />
-              <div className="absolute -bottom-1 -left-1 size-3 border-b-2 border-l-2 border-cyan-400" />
-              <div className="absolute -bottom-1 -right-1 size-3 border-b-2 border-r-2 border-cyan-400" />
+              <div className="absolute -top-1 -left-1 size-3 border-t-2 border-l-2 border-marigold-400" />
+              <div className="absolute -top-1 -right-1 size-3 border-t-2 border-r-2 border-marigold-400" />
+              <div className="absolute -bottom-1 -left-1 size-3 border-b-2 border-l-2 border-marigold-400" />
+              <div className="absolute -bottom-1 -right-1 size-3 border-b-2 border-r-2 border-marigold-400" />
 
               {/* Countdown overlay inside oval */}
               {countdown !== null && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex size-16 items-center justify-center rounded-full bg-black/70 text-3xl font-bold text-amber-300 animate-pulse border-2 border-amber-400">
+                  <div className="flex size-16 items-center justify-center rounded-full bg-navy-950/70 text-3xl font-bold text-marigold-300 animate-pulse border-2 border-marigold-400">
                     {countdown}
                   </div>
                 </div>
@@ -383,7 +383,7 @@ export function WebcamCapture({
         {/* Top Floating Instruction Pill */}
         {cameraState === 'running' && (
           <div className="absolute top-3 inset-x-3 z-20 flex items-center justify-between pointer-events-none">
-            <div className="flex items-center gap-2 rounded-full bg-black/70 backdrop-blur-md px-3.5 py-1 text-xs text-white border border-white/10 shadow">
+            <div className="flex items-center gap-2 rounded-full bg-navy-950/70 backdrop-blur-md px-3.5 py-1 text-xs text-white border border-white/10 shadow">
               <span className="size-2 rounded-full bg-emerald-400 animate-ping" />
               <span className="font-semibold">{currentPose.title}</span>
               <span className="text-white/60">·</span>
@@ -396,7 +396,7 @@ export function WebcamCapture({
                 aria-label="Select camera"
                 value={selectedDeviceId}
                 onChange={(e) => connectCamera(e.target.value)}
-                className="pointer-events-auto rounded-full bg-black/70 px-2.5 py-1 text-xs text-white border border-white/20 backdrop-blur-md focus:outline-none"
+                className="pointer-events-auto rounded-full bg-navy-950/70 px-2.5 py-1 text-xs text-white border border-white/20 backdrop-blur-md focus:outline-none"
               >
                 {devices.map((d, i) => (
                   <option key={d.deviceId || i} value={d.deviceId}>
@@ -411,7 +411,7 @@ export function WebcamCapture({
         {/* Bottom Shutter & Controls Bar */}
         {cameraState === 'running' && (
           <div className="absolute bottom-3 inset-x-3 z-20 flex items-center justify-between">
-            <span className="text-[11px] font-medium text-white/80 bg-black/60 px-2.5 py-1 rounded-md backdrop-blur-xs">
+            <span className="text-[11px] font-medium text-white/80 bg-navy-950/60 px-2.5 py-1 rounded-md backdrop-blur-xs">
               {files.length} of {max} photos taken
             </span>
 
@@ -449,10 +449,10 @@ export function WebcamCapture({
       </div>
 
       {/* Liveness Flash Explanation Note (GoTyme/MariBank reference) */}
-      <div className="rounded-lg border border-cyan-100 bg-cyan-50/50 p-3 text-xs text-gray-700">
+      <div className="rounded-lg border border-marigold-200 bg-marigold-50 p-3 text-xs text-gray-700">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-1.5 font-medium text-cyan-900">
-            <svg viewBox="0 0 20 20" className="size-4 text-cyan-600 shrink-0" fill="currentColor">
+          <div className="flex items-center gap-1.5 font-medium text-navy-900">
+            <svg viewBox="0 0 20 20" className="size-4 text-marigold-500 shrink-0" fill="currentColor">
               <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clipRule="evenodd" />
             </svg>
             <span>Active Screen Flash Liveness</span>
@@ -460,14 +460,14 @@ export function WebcamCapture({
           <button
             type="button"
             onClick={() => setShowLivenessInfo((v) => !v)}
-            className="text-[11px] font-medium text-cyan-700 hover:text-cyan-900 underline"
+            className="text-[11px] font-medium text-navy-700 hover:text-navy-900 underline"
           >
             {showLivenessInfo ? 'Hide explanation' : 'Why does the screen flash colors?'}
           </button>
         </div>
 
         {showLivenessInfo && (
-          <p className="mt-2 text-gray-600 leading-relaxed border-t border-cyan-100/80 pt-2">
+          <p className="mt-2 text-gray-600 leading-relaxed border-t border-marigold-100 pt-2">
             Similar to banking KYC applications like <strong>GoTyme</strong> and <strong>MariBank</strong>,
             the screen projects high-contrast chromatic light onto your face during capture.
             Human skin naturally reflects diffuse light across its contours, while phone screens or paper photos

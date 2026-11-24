@@ -1,3 +1,4 @@
+import { CheckCircle2, XCircle } from 'lucide-react'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { ToastContext, type ToastApi } from './useToast'
@@ -34,10 +35,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             role={t.tone === 'error' ? 'alert' : 'status'}
             className={cn(
-              'pointer-events-auto rounded-md border bg-white px-4 py-3 text-sm shadow-lg',
-              t.tone === 'error' ? 'border-red-300 text-red-800' : 'border-gray-300 text-gray-900',
+              'pointer-events-auto flex animate-fade-in items-start gap-3 rounded-xl px-4 py-3 text-sm shadow-overlay',
+              t.tone === 'error' ? 'bg-red-700 text-white' : 'bg-navy-900 text-cream',
             )}
           >
+            {t.tone === 'error' ? (
+              <XCircle className="mt-0.5 size-4 shrink-0 text-red-200" aria-hidden />
+            ) : (
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-marigold-400" aria-hidden />
+            )}
             {t.message}
           </div>
         ))}

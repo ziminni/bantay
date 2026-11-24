@@ -63,11 +63,11 @@ export function PhotoUploader({ files, onChange, max, disabled }: PhotoUploaderP
               mode === 'camera' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-600 hover:text-gray-900',
             )}
           >
-            <svg viewBox="0 0 20 20" className="size-4 text-cyan-600" fill="currentColor">
+            <svg viewBox="0 0 20 20" className="size-4 text-marigold-500" fill="currentColor">
               <path d="M3.25 4A2.25 2.25 0 0 0 1 6.25v7.5A2.25 2.25 0 0 0 3.25 16h7.5A2.25 2.25 0 0 0 13 13.75v-7.5A2.25 2.25 0 0 0 10.75 4h-7.5ZM14 7.5a.75.75 0 0 1 .75-.75h.01a.75.75 0 0 1 .75.75v5a.75.75 0 0 1-.75.75h-.01a.75.75 0 0 1-.75-.75v-5ZM17 8.5a.75.75 0 0 1 .75-.75h.01a.75.75 0 0 1 .75.75v3a.75.75 0 0 1-.75.75h-.01a.75.75 0 0 1-.75-.75v-3Z" />
             </svg>
             <span>Take with Camera</span>
-            <span className="rounded bg-cyan-100 px-1 py-0.2 text-[10px] text-cyan-800">Flash Liveness</span>
+            <span className="rounded bg-marigold-100 px-1 py-0.2 text-[10px] text-marigold-800">Flash Liveness</span>
           </button>
 
           <button
@@ -143,7 +143,7 @@ export function PhotoUploader({ files, onChange, max, disabled }: PhotoUploaderP
               <li key={p.url} className="group relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xs">
                 <div className="relative aspect-square w-full bg-gray-100">
                   <img src={p.url} alt={`Photo ${i + 1}`} className="size-full object-cover" />
-                  <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-xs">
+                  <span className="absolute bottom-1 left-1 rounded bg-navy-950/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-xs">
                     #{i + 1}
                   </span>
                 </div>

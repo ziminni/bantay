@@ -1,11 +1,11 @@
 # Bantay — Frontend
 
 The administrator dashboard for Bantay: React 19, TypeScript, Vite, Tailwind CSS,
-React Router, Recharts.
+React Router, Recharts, Lucide icons.
 
 > **Status:** connected to the backend via Vite dev proxy (`/api` and `/media`
-> -> `http://127.0.0.1:8000`). Layout and behaviour only — no visual design yet
-> (neutral greys, system font). There is no login yet.
+> -> `http://127.0.0.1:8000`). Styled with the Bantay brand (see Design below).
+> There is no login yet.
 
 ## Running it
 
@@ -21,13 +21,42 @@ npm run build      # typecheck + production build into dist/
 
 | Route | Page | Backend endpoints it mirrors |
 |---|---|---|
-| `/` | Dashboard — today's counters, entries per hour, per-lab totals, latest entries | `GET /stats/today` |
-| `/live` | Live View — camera grid, click to enlarge | `GET /cameras`, `GET /cameras/{id}/stream.mjpeg` |
+| `/` | Landing page — what Bantay is, how it works, privacy, and the login dialog | — (see the note on login below) |
+| `/dashboard` | Dashboard — today's counters, entries per hour, per-lab totals, latest entries | `GET /stats/today` |
+| `/live` | Live View — camera grid, click to enlarge, full-screen button | `GET /cameras`, `GET /cameras/{id}/stream.mjpeg` |
+| `/wall`, `/wall/:labId`, `/wall/all` | Camera Wall — pick a lab, then watch all its cameras at once (1/4/9/16 grid, paging, cycling, full screen) | `GET /labs`, `GET /cameras`, `GET /cameras/{id}/stream.mjpeg` |
 | `/enroll` | Enroll — choose person → upload 3–5 photos → result | `POST /persons`, `POST /persons/{id}/faces` |
 | `/logs` | Entry Logs — search, filters, details panel, manual entry, CSV export | `GET/POST/DELETE /entries`, `GET /entries/export.csv` |
 | `/users`, `/users/:id` | Users — list, details, face data, edit, deactivate, delete | `/persons`, `/persons/{id}/faces` |
 | `/labs`, `/labs/:id` | Labs — settings and the lab's cameras (add, edit, test, restart) | `/labs`, `/cameras` |
+| `/profile` | My profile — account details, display name, log out (also in the avatar menu, top right) | — (kept in the browser for now) |
 | `/tools/recognition` | Test Recognition — match a photo, optionally record an entry | `POST /recognize`, `POST /recognize/log` |
+
+> **About login.** The backend has no accounts or login endpoint yet, so login
+> is a stand-in (`src/api/auth.ts`): any username and password work, and the
+> profile is kept in this browser. Logged-out visitors are sent to the login
+> dialog and brought back afterwards, but the API itself is still open to
+> anyone on the network. Replace `login()` once the backend adds authentication.
+
+## Design
+
+The look comes from the Bantay brand assets (in `src/assets/brand/`):
+
+| Token | Colour | Used for |
+|---|---|---|
+| navy | `#0E2A47` | sidebar, headings, primary buttons |
+| marigold | `#F2A93B` | the accent — active nav, focus rings, highlights. Used sparingly |
+| cream | `#F7F5F0` | page background |
+| sand | `#E9E5DC` | borders and quiet surfaces |
+
+- Tokens live in `src/index.css`. Tailwind's `gray-*` scale is remapped to
+  brand neutrals, so plain `gray` classes already follow the brand.
+- Fonts are Outfit (headings) and Inter (text), bundled through npm rather than
+  a CDN, because the system runs on the department's local network.
+- The logo's scan brackets reappear as a motif: camera feeds, the featured stat
+  card, empty and loading states (`components/brand/BrandMark.tsx`).
+- Status colours always come with words: green fine, red a problem, marigold
+  needs attention.
 
 ## Folder structure
 

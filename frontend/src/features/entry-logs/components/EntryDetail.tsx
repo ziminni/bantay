@@ -1,3 +1,4 @@
+import { Cctv, History, ScanFace, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { deleteEntry, snapshotUrl } from '@/api/entries'
 import type { EntryLogRead } from '@/api/types'
@@ -29,7 +30,7 @@ export function EntryDetail({ entry, onClose, onDeleted }: EntryDetailProps) {
         title="Entry details"
         footer={
           entry && (
-            <Button variant="danger" onClick={() => setConfirming(true)}>
+            <Button variant="danger" onClick={() => setConfirming(true)} icon={<Trash2 />}>
               Delete entry
             </Button>
           )
@@ -59,12 +60,12 @@ export function EntryDetail({ entry, onClose, onDeleted }: EntryDetailProps) {
 
             <div className="flex flex-wrap gap-3">
               {entry.person && (
-                <ButtonLink to={`/logs?person_id=${entry.person.id}`} size="sm" onClick={onClose}>
+                <ButtonLink to={`/logs?person_id=${entry.person.id}`} size="sm" onClick={onClose} icon={<History />}>
                   All entries by this person
                 </ButtonLink>
               )}
               {entry.camera_id && (
-                <ButtonLink to={`/live`} size="sm">
+                <ButtonLink to={`/live`} size="sm" icon={<Cctv />}>
                   Live view
                 </ButtonLink>
               )}
@@ -96,13 +97,16 @@ function Snapshot({ path }: { path: string }) {
   return (
     <figure>
       {MOCK_MODE ? (
-        <div className="flex aspect-video items-center justify-center rounded-md bg-gray-200 p-4 text-center text-xs text-gray-500">
+        <div className="flex aspect-video items-center justify-center rounded-xl bg-navy-900 p-4 text-center text-xs text-navy-200">
           Snapshot of the unknown face appears here once the backend is connected
         </div>
       ) : (
-        <img src={snapshotUrl(path)} alt="Snapshot of the unknown face" className="w-full rounded-md border border-gray-200" />
+        <div className="overflow-hidden rounded-xl bg-navy-950 ring-1 ring-gray-200">
+          <img src={snapshotUrl(path)} alt="Snapshot of the unknown face" className="w-full" />
+        </div>
       )}
-      <figcaption className="mt-2 text-xs text-gray-500">Captured when the face did not match anyone enrolled.</figcaption>
+      <figcaption className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+        <ScanFace className="size-3.5 text-marigold-500" aria-hidden />Captured when the face did not match anyone enrolled.</figcaption>
     </figure>
   )
 }

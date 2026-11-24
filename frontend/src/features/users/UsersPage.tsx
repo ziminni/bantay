@@ -1,8 +1,11 @@
+import { ScanFace, ShieldAlert, ShieldCheck, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPerson, listPersons } from '@/api/persons'
 import type { PersonRead, PersonType } from '@/api/types'
 import { ActiveBadge } from '@/components/common/badges'
+import { Avatar } from '@/components/ui/Avatar'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { PersonForm } from '@/components/common/PersonForm'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -28,10 +31,13 @@ const columns: Column<PersonRead>[] = [
     key: 'name',
     header: 'Name',
     cell: (p) => (
-      <>
-        <span className="font-medium text-gray-900">{p.full_name}</span>
-        <span className="block text-xs text-gray-500">{p.id_number}</span>
-      </>
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar name={p.full_name} />
+        <div className="min-w-0">
+          <span className="block truncate font-medium text-navy-900">{p.full_name}</span>
+          <span className="block text-xs text-gray-500">{p.id_number}</span>
+        </div>
+      </div>
     ),
   },
   { key: 'type', header: 'Type', hideBelow: 'sm', cell: (p) => PERSON_TYPE_LABELS[p.person_type] },
@@ -41,16 +47,33 @@ const columns: Column<PersonRead>[] = [
     header: 'Face photos',
     cell: (p) =>
       p.embedding_count === 0 ? (
-        <span className="text-gray-500">Not enrolled</span>
+        <StatusBadge tone="neutral">Not enrolled</StatusBadge>
       ) : p.embedding_count < MIN_ENROLLMENT_PHOTOS ? (
-        <span>
-          {p.embedding_count} <span className="text-gray-500">· needs more</span>
-        </span>
+        <StatusBadge tone="warning">{p.embedding_count} · needs more</StatusBadge>
       ) : (
-        p.embedding_count
+        <span className="inline-flex items-center gap-1.5 font-medium text-navy-900 tabular-nums">
+          <ScanFace className="size-4 text-emerald-600" aria-hidden />
+          {p.embedding_count}
+        </span>
       ),
   },
-  { key: 'consent', header: 'Consent', hideBelow: 'md', cell: (p) => (p.consent_given ? 'Signed' : 'Not signed') },
+  {
+    key: 'consent',
+    header: 'Consent',
+    hideBelow: 'md',
+    cell: (p) =>
+      p.consent_given ? (
+        <span className="inline-flex items-center gap-1.5 text-navy-900">
+          <ShieldCheck className="size-4 text-emerald-600" aria-hidden />
+          Signed
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 text-gray-500">
+          <ShieldAlert className="size-4 text-marigold-500" aria-hidden />
+          Not signed
+        </span>
+      ),
+  },
   { key: 'status', header: 'Status', cell: (p) => <ActiveBadge active={p.active} /> },
 ]
 
@@ -85,8 +108,10 @@ export function UsersPage() {
         description="Students, faculty and staff who can be recognized at lab entrances."
         actions={
           <>
-            <ButtonLink to="/enroll">Enroll a face</ButtonLink>
-            <Button variant="primary" onClick={() => setAdding(true)}>
+            <ButtonLink to="/enroll" icon={<ScanFace />}>
+              Enroll a face
+            </ButtonLink>
+            <Button variant="primary" onClick={() => setAdding(true)} icon={<UserPlus />}>
               Add person
             </Button>
           </>

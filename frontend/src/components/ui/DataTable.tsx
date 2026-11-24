@@ -41,17 +41,17 @@ export function DataTable<T>({
   if (rows && rows.length === 0) return <>{empty ?? <EmptyState title="Nothing to show" />}</>
 
   return (
-    <div className={cn('overflow-x-auto', loading && 'opacity-60')}>
+    <div className={cn('overflow-x-auto transition-opacity', loading && 'opacity-60')}>
       <table className="w-full text-left text-sm">
         {caption && <caption className="sr-only">{caption}</caption>}
-        <thead className="border-b border-gray-200 text-xs font-medium tracking-wide text-gray-500 uppercase">
+        <thead className="border-b border-gray-100 bg-gray-50/70 text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
           <tr>
             {columns.map((c) => (
               <th
                 key={c.key}
                 scope="col"
                 className={cn(
-                  'px-4 py-3 whitespace-nowrap',
+                  'px-4 py-3 whitespace-nowrap first:pl-5 last:pr-5 sm:first:pl-6 sm:last:pr-6',
                   c.align === 'right' && 'text-right',
                   c.hideBelow && hide[c.hideBelow],
                   c.className,
@@ -80,13 +80,13 @@ export function DataTable<T>({
               tabIndex={onRowClick ? 0 : undefined}
               role={onRowClick ? 'button' : undefined}
               aria-label={onRowClick && rowLabel ? rowLabel(row) : undefined}
-              className={cn(onRowClick && 'cursor-pointer hover:bg-gray-50')}
+              className={cn('transition-colors', onRowClick && 'cursor-pointer hover:bg-marigold-50/40 focus-visible:bg-marigold-50/60')}
             >
               {columns.map((c) => (
                 <td
                   key={c.key}
                   className={cn(
-                    'px-4 py-3 align-middle',
+                    'px-4 py-3.5 align-middle first:pl-5 last:pr-5 sm:first:pl-6 sm:last:pr-6',
                     c.align === 'right' && 'text-right',
                     c.hideBelow && hide[c.hideBelow],
                     c.className,

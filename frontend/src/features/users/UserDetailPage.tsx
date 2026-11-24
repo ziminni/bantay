@@ -1,3 +1,4 @@
+import { ArrowRight, History, IdCard, ImagePlus, Pencil, Power, PowerOff, ScanFace, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { listEntries } from '@/api/entries'
@@ -5,6 +6,7 @@ import { errorMessage } from '@/api/errors'
 import { deletePerson, getPerson, listFaces, updatePerson } from '@/api/persons'
 import type { EntryLogRead } from '@/api/types'
 import { ActiveBadge } from '@/components/common/badges'
+import { Avatar } from '@/components/ui/Avatar'
 import { PersonForm } from '@/components/common/PersonForm'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Alert } from '@/components/ui/Alert'
@@ -52,15 +54,21 @@ export function UserDetailPage() {
     <>
       <PageHeader
         back={{ to: '/users', label: 'Users' }}
+        leading={<Avatar name={p.full_name} size="lg" className="ring-4 ring-white" />}
         title={p.full_name}
         description={`${p.id_number} · ${PERSON_TYPE_LABELS[p.person_type]}${p.department ? ` · ${p.department}` : ''}`}
         actions={
           <>
-            <Button onClick={() => setDialog('edit')}>Edit</Button>
+            <Button onClick={() => setDialog('edit')} icon={<Pencil />}>
+              Edit
+            </Button>
             {p.active ? (
-              <Button onClick={() => setDialog('deactivate')}>Deactivate</Button>
+              <Button onClick={() => setDialog('deactivate')} icon={<PowerOff />}>
+                Deactivate
+              </Button>
             ) : (
               <Button
+                icon={<Power />}
                 onClick={async () => {
                   try {
                     await updatePerson(p.id, { active: true })
@@ -74,7 +82,7 @@ export function UserDetailPage() {
                 Activate
               </Button>
             )}
-            <Button variant="danger" onClick={() => setDialog('delete')}>
+            <Button variant="danger" onClick={() => setDialog('delete')} icon={<Trash2 />}>
               Delete
             </Button>
           </>
@@ -104,7 +112,7 @@ export function UserDetailPage() {
               tone="warning"
               title={p.embedding_count === 0 ? 'Not enrolled yet' : 'More face photos needed'}
               action={
-                <Button size="sm" variant="primary" onClick={() => setDialog('faces')}>
+                <Button size="sm" variant="primary" onClick={() => setDialog('faces')} icon={<ImagePlus />}>
                   Add face photos
                 </Button>
               }
@@ -115,7 +123,7 @@ export function UserDetailPage() {
         )}
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <Section title="Details">
+          <Section title="Details" icon={<IdCard />}>
             <DescriptionList
               items={[
                 { label: 'ID number', value: p.id_number },
@@ -133,11 +141,12 @@ export function UserDetailPage() {
 
           <Section
             title="Face photos"
+            icon={<ScanFace />}
             description={`${pluralize(p.embedding_count, 'face')} on file. Photos themselves are never stored.`}
             className="lg:col-span-2"
             flush
             actions={
-              <Button size="sm" onClick={() => setDialog('faces')} disabled={!p.consent_given}>
+              <Button size="sm" onClick={() => setDialog('faces')} disabled={!p.consent_given} icon={<ImagePlus />}>
                 Add photos
               </Button>
             }
@@ -148,10 +157,12 @@ export function UserDetailPage() {
 
         <Section
           title="Recent entries"
+          icon={<History />}
           flush
           actions={
-            <ButtonLink size="sm" to={`/logs?person_id=${p.id}`}>
+            <ButtonLink size="sm" variant="ghost" to={`/logs?person_id=${p.id}`}>
               View all
+              <ArrowRight />
             </ButtonLink>
           }
         >

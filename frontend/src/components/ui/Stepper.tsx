@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 /** Numbered steps for multi-step flows like Enroll. */
@@ -8,19 +9,31 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
         const done = i < current
         const active = i === current
         return (
-          <li key={label} className="flex items-center sm:flex-1" aria-current={active ? 'step' : undefined}>
+          <li key={label} className="flex items-center sm:flex-1 sm:last:flex-none" aria-current={active ? 'step' : undefined}>
             <span
               className={cn(
-                'flex size-8 shrink-0 items-center justify-center rounded-full border text-sm font-medium',
-                active && 'border-gray-900 bg-gray-900 text-white',
-                done && 'border-gray-900 text-gray-900',
-                !active && !done && 'border-gray-300 text-gray-400',
+                'flex size-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-semibold transition-colors',
+                active && 'bg-navy-900 text-cream ring-4 ring-marigold-200',
+                done && 'bg-marigold-400 text-navy-950',
+                !active && !done && 'bg-white text-gray-400 ring-1 ring-gray-200',
               )}
             >
-              {done ? '✓' : i + 1}
+              {done ? <Check className="size-4" strokeWidth={3} aria-label="Done" /> : i + 1}
             </span>
-            <span className={cn('ml-3 text-sm', active ? 'font-medium text-gray-900' : 'text-gray-500')}>{label}</span>
-            {i < steps.length - 1 && <span aria-hidden className="mx-4 hidden h-px flex-1 bg-gray-200 sm:block" />}
+            <span
+              className={cn(
+                'ml-3 text-sm whitespace-nowrap',
+                active ? 'font-semibold text-navy-900' : done ? 'font-medium text-navy-700' : 'text-gray-500',
+              )}
+            >
+              {label}
+            </span>
+            {i < steps.length - 1 && (
+              <span
+                aria-hidden
+                className={cn('mx-5 hidden h-0.5 flex-1 rounded-full sm:block', done ? 'bg-marigold-300' : 'bg-gray-200')}
+              />
+            )}
           </li>
         )
       })}

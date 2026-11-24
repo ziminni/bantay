@@ -1,3 +1,4 @@
+import { Image as ImageIcon, LogIn, ScanSearch, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { errorMessage } from '@/api/errors'
 import { listLabs } from '@/api/labs'
@@ -74,7 +75,7 @@ export function RecognitionTestPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <Section title="Photo" className="lg:col-span-3">
+        <Section title="Photo" icon={<ImageIcon />} className="lg:col-span-3">
           <div className="space-y-5">
             {preview ? (
               <ImageWithBoxes src={preview} faces={result?.faces ?? []} />
@@ -102,7 +103,7 @@ export function RecognitionTestPage() {
         </Section>
 
         <div className="space-y-6 lg:col-span-2">
-          <Section title="Settings">
+          <Section title="Settings" icon={<SlidersHorizontal />}>
             <div className="space-y-5">
               <FormField htmlFor="recog-lab" label="Laboratory" hint="Optional. Needed only to record an entry.">
                 <LabSelect
@@ -135,10 +136,10 @@ export function RecognitionTestPage() {
               </FormField>
 
               <div className="flex flex-col gap-3 border-t border-gray-200 pt-5 sm:flex-row lg:flex-col xl:flex-row">
-                <Button variant="primary" onClick={() => run('test')} disabled={!file || busy !== null} loading={busy === 'test'} className="flex-1">
+                <Button variant="primary" icon={<ScanSearch />} onClick={() => run('test')} disabled={!file || busy !== null} loading={busy === 'test'} className="flex-1">
                   Test
                 </Button>
-                <Button onClick={() => run('log')} disabled={!file || !labId || busy !== null} loading={busy === 'log'} className="flex-1">
+                <Button icon={<LogIn />} onClick={() => run('log')} disabled={!file || !labId || busy !== null} loading={busy === 'log'} className="flex-1">
                   Test and record entry
                 </Button>
               </div>
@@ -149,7 +150,7 @@ export function RecognitionTestPage() {
             </div>
           </Section>
 
-          <Section title="Result">
+          <Section title="Result" icon={<ScanSearch />}>
             {error ? (
               <Alert tone="error">{error}</Alert>
             ) : result ? (

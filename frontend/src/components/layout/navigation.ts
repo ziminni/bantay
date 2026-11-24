@@ -1,33 +1,49 @@
+import { Cctv, LayoutDashboard, Monitor, MonitorPlay, ScanFace, ScanSearch, ScrollText, Users, type LucideIcon } from 'lucide-react'
+
 export interface NavItem {
   to: string
   label: string
   description: string
+  icon: LucideIcon
 }
 
 export interface NavGroup {
-  label?: string
+  label: string
   items: NavItem[]
 }
 
-/** The sidebar. The six main pages follow the project documentation. */
+/**
+ * The sidebar. Every page sits under a category; the six main pages follow
+ * the project documentation, plus the recognition test tool.
+ */
 export const NAVIGATION: NavGroup[] = [
   {
+    label: 'Overview',
+    items: [{ to: '/dashboard', label: 'Dashboard', description: "Today's entries and statistics", icon: LayoutDashboard }],
+  },
+  {
+    label: 'Monitoring',
     items: [
-      { to: '/', label: 'Dashboard', description: "Today's entries and statistics" },
-      { to: '/live', label: 'Live View', description: 'Camera feeds' },
-      { to: '/enroll', label: 'Enroll', description: 'Register a face' },
-      { to: '/logs', label: 'Entry Logs', description: 'Search entry history' },
+      { to: '/live', label: 'Live View', description: 'Watch the lab cameras', icon: Cctv },
+      { to: '/wall', label: 'Camera Wall', description: 'Every camera in a lab at once', icon: MonitorPlay },
+      { to: '/logs', label: 'Entry Logs', description: 'Search the entry history', icon: ScrollText },
     ],
   },
   {
-    label: 'Manage',
+    label: 'People',
     items: [
-      { to: '/users', label: 'Users', description: 'Students, faculty and staff' },
-      { to: '/labs', label: 'Labs', description: 'Laboratories and cameras' },
+      { to: '/enroll', label: 'Enroll', description: "Register a person's face", icon: ScanFace },
+      { to: '/users', label: 'Users', description: 'Students, faculty and staff', icon: Users },
     ],
+  },
+  {
+    label: 'Facilities',
+    items: [{ to: '/labs', label: 'Labs', description: 'Laboratories and their cameras', icon: Monitor }],
   },
   {
     label: 'Tools',
-    items: [{ to: '/tools/recognition', label: 'Test Recognition', description: 'Check matching on a photo' }],
+    items: [
+      { to: '/tools/recognition', label: 'Test Recognition', description: 'Check matching on a photo', icon: ScanSearch },
+    ],
   },
 ]
