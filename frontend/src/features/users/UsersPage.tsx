@@ -104,7 +104,7 @@ export function UsersPage() {
   return (
     <>
       <PageHeader
-        title="Users"
+        title="Persons"
         description="Students, faculty and staff who can be recognized at lab entrances."
         actions={
           <>

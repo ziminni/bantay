@@ -1,5 +1,5 @@
-import { ArrowRight, BarChart3, Cctv, DoorOpen, Monitor, ScanFace, ScrollText, UserRoundCheck } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { ArrowRight, BarChart3, DoorOpen, Flag, Monitor, ScanFace, ScrollText, ShieldAlert, UserRoundCheck } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { getTodayStats } from '@/api/stats'
 import { LabSelect } from '@/components/common/selects'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -10,10 +10,12 @@ import { Section } from '@/components/ui/Section'
 import { StatCard } from '@/components/ui/StatCard'
 import { DASHBOARD_REFRESH_MS } from '@/config'
 import { useAsync } from '@/hooks/useAsync'
+import { useFlagCounts } from '@/hooks/useFlagCounts'
 import { formatLongDate } from '@/lib/format'
 import { EntriesPerHourChart } from './components/EntriesPerHourChart'
 import { LabTotalsList } from './components/LabTotalsList'
 import { LatestEntriesList } from './components/LatestEntriesList'
+import { PendingFlagsList } from './components/PendingFlagsList'
 
 const datePrefix = (date: string | undefined) => (date ? `${formatLongDate(date)} · ` : '')
 
@@ -24,6 +26,8 @@ export function DashboardPage() {
   const stats = useAsync(() => getTodayStats({ lab_id: labId, latest: 10 }), [labId], {
     refreshInterval: DASHBOARD_REFRESH_MS,
   })
+  const flagCounts = useFlagCounts(10_000)
+  const pendingFlags = flagCounts?.PENDING ?? 0
   const s = stats.data
 
   return (
@@ -62,13 +66,15 @@ export function DashboardPage() {
               icon={<UserRoundCheck />}
             />
             <StatCard label="Unknown faces" value={s.unknown_today.toLocaleString()} hint="Not enrolled" icon={<ScanFace />} />
-            <StatCard
-              label="Cameras online"
-              value={`${s.cameras_online} / ${s.cameras_total}`}
-              hint={s.cameras_online < s.cameras_total ? 'Some need attention' : 'All cameras working'}
-              alert={s.cameras_online < s.cameras_total}
-              icon={<Cctv />}
-            />
+            <Link to={labId ? `/flags?lab_id=${labId}` : '/flags'} className="block transition-transform hover:-translate-y-0.5">
+              <StatCard
+                label="Pending flags"
+                value={pendingFlags.toLocaleString()}
+                hint={pendingFlags > 0 ? `${pendingFlags} waiting for review` : 'All flags reviewed'}
+                alert={pendingFlags > 0}
+                icon={pendingFlags > 0 ? <ShieldAlert className="text-marigold-500" /> : <Flag />}
+              />
+            </Link>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
@@ -85,20 +91,33 @@ export function DashboardPage() {
             </Section>
           </div>
 
-          <Section
-            title="Latest entries"
-            description="The ten most recent, newest first"
-            icon={<ScrollText />}
-            flush
-            actions={
-              <ButtonLink to={labId ? `/logs?lab_id=${labId}` : '/logs'} size="sm" variant="ghost">
-                View all logs
-                <ArrowRight />
-              </ButtonLink>
-            }
-          >
-            <LatestEntriesList entries={s.latest_entries} />
-          </Section>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Section
+              title="Latest entries"
+              description="The ten most recent, newest first"
+              icon={<ScrollText />}
+              flush
+              className="lg:col-span-2"
+              actions={
+                <ButtonLink to={labId ? `/logs?lab_id=${labId}` : '/logs'} size="sm" variant="ghost">
+                  View all logs
+                  <ArrowRight />
+                </ButtonLink>
+              }
+            >
+              <LatestEntriesList entries={s.latest_entries} />
+            </Section>
+
+            <Section
+              title="Pending flags"
+              description="Behaviour alerts waiting for review"
+              icon={<Flag />}
+              flush
+              className="lg:col-span-1"
+            >
+              <PendingFlagsList labId={labId} />
+            </Section>
+          </div>
         </div>
       ) : null}
     </>
