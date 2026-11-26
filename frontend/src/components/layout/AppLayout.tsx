@@ -1,6 +1,8 @@
 import { X } from 'lucide-react'
 import { useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
+import { cn } from '@/lib/cn'
+import { WIDE_ROUTES } from './navigation'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 
@@ -8,6 +10,9 @@ import { Topbar } from './Topbar'
 export function AppLayout() {
   // The mobile menu closes itself when a link in it is followed (Sidebar's onNavigate).
   const [menuOpen, setMenuOpen] = useState(false)
+  const { pathname } = useLocation()
+  // Video and review pages use the whole screen; forms and tables keep a readable width.
+  const wide = WIDE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))
 
   return (
     <div className="min-h-screen">
@@ -44,7 +49,7 @@ export function AppLayout() {
       <div className="flex min-h-screen flex-col lg:pl-64">
         <Topbar onMenu={() => setMenuOpen(true)} />
         <main id="main" className="flex-1 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-          <div className="mx-auto max-w-7xl">
+          <div className={cn('mx-auto', wide ? 'max-w-[1800px]' : 'max-w-7xl')}>
             <Outlet />
           </div>
         </main>

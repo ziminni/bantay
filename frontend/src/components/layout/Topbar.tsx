@@ -8,6 +8,7 @@ import { MOCK_MODE, TIME_ZONE } from '@/config'
 import { useAsync } from '@/hooks/useAsync'
 import { useNow } from '@/hooks/useNow'
 import { cn } from '@/lib/cn'
+import { AlertBell } from './AlertBell'
 import { NAVIGATION, type NavItem } from './navigation'
 import { ProfileMenu } from './ProfileMenu'
 
@@ -127,6 +128,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
             Enroll
           </ButtonLink>
         )}
+        <AlertBell />
         <ProfileMenu />
       </div>
     </header>

@@ -6,7 +6,8 @@ import { Logo } from '@/components/brand/Logo'
 import { useSession } from '@/hooks/useSession'
 import { cn } from '@/lib/cn'
 import { initials } from '@/lib/initials'
-import { NAVIGATION } from './navigation'
+import { NavBadge } from './NavBadge'
+import { visibleNavigation } from './navigation'
 
 /**
  * The navy sidebar. Each category is a heading, and its pages hang beneath it
@@ -30,7 +31,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav aria-label="Main" className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
-        {NAVIGATION.map((group) => (
+        {visibleNavigation(user?.role).map((group) => (
           <section key={group.label} aria-labelledby={`nav-${group.label}`}>
             <h2
               id={`nav-${group.label}`}
@@ -73,6 +74,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                           )}
                         />
                         <span className="truncate">{item.label}</span>
+                        {item.badge && <NavBadge kind={item.badge} />}
                       </>
                     )}
                   </NavLink>
