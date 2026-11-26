@@ -1,4 +1,3 @@
-import { X } from 'lucide-react'
 import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/cn'
@@ -10,6 +9,7 @@ import { Topbar } from './Topbar'
 export function AppLayout() {
   // The mobile menu closes itself when a link in it is followed (Sidebar's onNavigate).
   const [menuOpen, setMenuOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const { pathname } = useLocation()
   // Video and review pages use the whole screen; forms and tables keep a readable width.
   const wide = WIDE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))
@@ -24,8 +24,13 @@ export function AppLayout() {
       </a>
 
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">
-        <Sidebar />
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-30 hidden w-64 transition-transform duration-200 ease-out lg:block',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        <Sidebar onClose={() => setSidebarOpen(false)} />
       </aside>
 
       {/* Mobile sidebar */}
@@ -33,21 +38,22 @@ export function AppLayout() {
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <div className="absolute inset-0 animate-fade-in bg-navy-950/50 backdrop-blur-[2px]" onClick={() => setMenuOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-72 shadow-overlay">
-            <Sidebar onNavigate={() => setMenuOpen(false)} />
-            <button
-              type="button"
-              onClick={() => setMenuOpen(false)}
-              aria-label="Close menu"
-              className="absolute top-5 right-3 rounded-lg p-2 text-navy-200 hover:bg-white/10 hover:text-cream"
-            >
-              <X className="size-5" />
-            </button>
+            <Sidebar onNavigate={() => setMenuOpen(false)} onClose={() => setMenuOpen(false)} />
           </aside>
         </div>
       )}
 
-      <div className="flex min-h-screen flex-col lg:pl-64">
-        <Topbar onMenu={() => setMenuOpen(true)} />
+      <div
+        className={cn(
+          'flex min-h-screen flex-col transition-[padding] duration-200 ease-out',
+          sidebarOpen && 'lg:pl-64',
+        )}
+      >
+        <Topbar
+          onMenu={() => setMenuOpen(true)}
+          sidebarOpen={sidebarOpen}
+          onOpenSidebar={() => setSidebarOpen(true)}
+        />
         <main id="main" className="flex-1 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
           <div className={cn('mx-auto', wide ? 'max-w-[1800px]' : 'max-w-7xl')}>
             <Outlet />

@@ -1,4 +1,4 @@
-import { ChevronRight, Clock, Cctv, Cpu, Database, FlaskConical, Menu, ScanFace, UserRound } from 'lucide-react'
+import { ChevronRight, Clock, Cctv, Cpu, Database, FlaskConical, Menu, PanelLeftOpen, ScanFace, UserRound } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getHealth } from '@/api/system'
@@ -35,7 +35,15 @@ const dayFmt = new Intl.DateTimeFormat('en-PH', { timeZone: TIME_ZONE, weekday: 
  * Top bar: where you are on the left, the time and the system's health on
  * the right, and a shortcut to the task done most often — enrolling a face.
  */
-export function Topbar({ onMenu }: { onMenu: () => void }) {
+export function Topbar({
+  onMenu,
+  sidebarOpen = true,
+  onOpenSidebar,
+}: {
+  onMenu: () => void
+  sidebarOpen?: boolean
+  onOpenSidebar?: () => void
+}) {
   const health = useAsync(getHealth, [], { refreshInterval: 30_000 })
   const h = health.data
   const camerasTotal = h ? h.cameras_online + h.cameras_offline : 0
@@ -54,6 +62,18 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         <Menu className="size-5" />
       </button>
       <Logo variant="lockup" className="h-7 w-auto lg:hidden" />
+
+      {!sidebarOpen && onOpenSidebar && (
+        <button
+          type="button"
+          onClick={onOpenSidebar}
+          className="-ml-2 hidden rounded-lg p-2 text-navy-900 transition-colors hover:bg-gray-100 lg:inline-flex"
+          aria-label="Open sidebar"
+          title="Open sidebar"
+        >
+          <PanelLeftOpen className="size-5" />
+        </button>
+      )}
 
       {/* Where you are */}
       {current && (

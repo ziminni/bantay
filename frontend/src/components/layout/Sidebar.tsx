@@ -1,4 +1,4 @@
-import { LogOut } from 'lucide-react'
+import { LogOut, PanelLeftClose } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { logout } from '@/api/auth'
 import { BrandMark } from '@/components/brand/BrandMark'
@@ -14,7 +14,13 @@ import { visibleNavigation } from './navigation'
  * along a thin guide line, indented, like a tree. The open page lights up the
  * guide line in marigold.
  */
-export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+export function Sidebar({
+  onNavigate,
+  onClose,
+}: {
+  onNavigate?: () => void
+  onClose?: () => void
+}) {
   const user = useSession()
   const navigate = useNavigate()
   const signOut = () => {
@@ -24,10 +30,21 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col bg-navy-900 text-navy-100">
-      <div className="flex h-[4.5rem] shrink-0 items-center border-b border-white/10 px-6">
+      <div className="flex h-[4.5rem] shrink-0 items-center justify-between gap-2 border-b border-white/10 pr-4 pl-6">
         <NavLink to="/dashboard" onClick={onNavigate} aria-label="Bantay — go to the dashboard" className="rounded-md">
           <Logo variant="lockup-on-dark" className="h-10 w-auto" />
         </NavLink>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close sidebar"
+            title="Close sidebar"
+            className="rounded-lg p-2 text-navy-300 transition-colors hover:bg-white/10 hover:text-cream"
+          >
+            <PanelLeftClose className="size-5" />
+          </button>
+        )}
       </div>
 
       <nav aria-label="Main" className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
