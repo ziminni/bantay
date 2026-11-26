@@ -116,12 +116,35 @@ def _open_capture(url: str | int) -> cv2.VideoCapture:
         device_index = 0
 
     if is_device:
-        # On macOS, CAP_AVFOUNDATION is required for smooth built-in webcam capture
-        if hasattr(cv2, "CAP_AVFOUNDATION"):
-            cap = cv2.VideoCapture(device_index, cv2.CAP_AVFOUNDATION)
-            if cap.isOpened():
-                return cap
-        return cv2.VideoCapture(device_index)
+        def try_device(idx: int) -> tuple[cv2.VideoCapture | None, float]:
+            c = None
+            if hasattr(cv2, "CAP_AVFOUNDATION"):
+                c = cv2.VideoCapture(idx, cv2.CAP_AVFOUNDATION)
+            if c is None or not c.isOpened():
+                c = cv2.VideoCapture(idx)
+            if not c.isOpened():
+                return None, 0.0
+            brightness = 0.0
+            for _ in range(4):
+                ok, f = c.read()
+                if ok and f is not None:
+                    brightness = float(f.mean())
+                    break
+                time.sleep(0.04)
+            return c, brightness
+
+        cap, b = try_device(device_index)
+        # On macOS, device 0 is often a dormant Continuity Camera returning pitch-black frames.
+        # If device 0 is pitch-black (brightness < 12), auto-fall back to device 1 (built-in FaceTime HD).
+        if cap is not None and b < 12.0 and device_index == 0:
+            cap1, b1 = try_device(1)
+            if cap1 is not None and b1 >= 12.0:
+                cap.release()
+                return cap1
+            if cap1 is not None:
+                cap1.release()
+
+        return cap if cap is not None else cv2.VideoCapture(device_index)
 
     # Clean accidental double protocol prefix if user pasted rtsp://http://
     if raw.startswith("rtsp://http://"):
