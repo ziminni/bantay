@@ -89,16 +89,50 @@ def _placeholder_jpeg(text: str, width: int = 640, height: int = 360) -> bytes:
     return buf.tobytes() if ok else b""
 
 
-def _open_capture(url: str) -> cv2.VideoCapture:
-    """Open a video capture stream using the best available backend.
-    
-    Tries default auto-selection (CAP_ANY) first so MJPEG/HTTP and RTSP
-    streams open cleanly across macOS and Linux, falling back to CAP_FFMPEG.
+def _open_capture(url: str | int) -> cv2.VideoCapture:
+    """Open a video capture stream or local webcam using the best available backend.
+
+    Supports:
+      - Local webcams: '0', 0, 'webcam://0', 'webcam', 'device://0'
+      - Network streams: RTSP, HTTP MJPEG, HTTPS, etc.
     """
-    cap = cv2.VideoCapture(url)
+    raw = str(url).strip()
+
+    is_device = False
+    device_index = 0
+
+    if isinstance(url, int):
+        is_device = True
+        device_index = url
+    elif raw.isdigit():
+        is_device = True
+        device_index = int(raw)
+    elif raw.startswith(("webcam://", "device://")):
+        is_device = True
+        remainder = raw.split("://", 1)[1]
+        device_index = int(remainder) if remainder.isdigit() else 0
+    elif raw.lower() in ("webcam", "builtin", "laptop"):
+        is_device = True
+        device_index = 0
+
+    if is_device:
+        # On macOS, CAP_AVFOUNDATION is required for smooth built-in webcam capture
+        if hasattr(cv2, "CAP_AVFOUNDATION"):
+            cap = cv2.VideoCapture(device_index, cv2.CAP_AVFOUNDATION)
+            if cap.isOpened():
+                return cap
+        return cv2.VideoCapture(device_index)
+
+    # Clean accidental double protocol prefix if user pasted rtsp://http://
+    if raw.startswith("rtsp://http://"):
+        raw = raw[len("rtsp://"):]
+    elif raw.startswith("rtsp://https://"):
+        raw = raw[len("rtsp://"):]
+
+    cap = cv2.VideoCapture(raw)
     if not cap.isOpened() and hasattr(cv2, "CAP_FFMPEG"):
         cap.release()
-        cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+        cap = cv2.VideoCapture(raw, cv2.CAP_FFMPEG)
     return cap
 
 
@@ -489,7 +523,14 @@ def probe_camera(rtsp_url: str, timeout: float | None = None) -> tuple[bool, dic
         cap = _open_capture(rtsp_url)
         if not cap.isOpened():
             return False, {"detail": "Could not open the stream."}
-        ok, frame = cap.read()
+        ok, frame = False, None
+        deadline = time.monotonic() + (timeout or 2.5)
+        while time.monotonic() < deadline:
+            ok, frame = cap.read()
+            if ok and frame is not None:
+                break
+            time.sleep(0.05)
+
         if not ok or frame is None:
             return False, {"detail": "The stream opened but returned no frame."}
         height, width = frame.shape[:2]

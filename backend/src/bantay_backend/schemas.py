@@ -199,10 +199,22 @@ class CameraBase(BaseModel):
         Field(
             min_length=1,
             examples=["rtsp://admin:password@192.168.1.50:554/Streaming/Channels/101"],
-            description="Full RTSP URL. The password is never returned by the API.",
+            description="Full RTSP URL or local device identifier (e.g. webcam://0).",
         ),
     ]
     enabled: bool = True
+
+    @field_validator("rtsp_url", mode="before")
+    @classmethod
+    def _clean_url(cls, v: str | None) -> str | None:
+        if not v:
+            return v
+        s = str(v).strip()
+        if s.startswith("rtsp://http://"):
+            return s[len("rtsp://"):]
+        if s.startswith("rtsp://https://"):
+            return s[len("rtsp://"):]
+        return s
 
 
 class CameraCreate(CameraBase):
@@ -215,6 +227,18 @@ class CameraUpdate(BaseModel):
     rtsp_url: Annotated[str | None, Field(min_length=1)] = None
     enabled: bool | None = None
     lab_id: int | None = None
+
+    @field_validator("rtsp_url", mode="before")
+    @classmethod
+    def _clean_url(cls, v: str | None) -> str | None:
+        if not v:
+            return v
+        s = str(v).strip()
+        if s.startswith("rtsp://http://"):
+            return s[len("rtsp://"):]
+        if s.startswith("rtsp://https://"):
+            return s[len("rtsp://"):]
+        return s
 
 
 class CameraRead(ORMModel):

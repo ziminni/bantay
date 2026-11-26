@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent } from 'react'
+import { Laptop } from 'lucide-react'
 import { createCamera, deleteCamera, updateCamera } from '@/api/cameras'
 import { ApiError, errorMessage } from '@/api/errors'
 import type { CameraRead, CameraRole } from '@/api/types'
@@ -24,7 +25,7 @@ const ROLES: Array<{ value: CameraRole; label: string; description: string }> = 
   { value: 'ROOM', label: 'Room camera', description: 'Watches the room. Live view only; records nothing.' },
 ]
 
-const URL_PATTERN = /^(rtsps?|https?):\/\/\S+$/i
+const URL_PATTERN = /^(rtsps?|https?|webcam|device):\/\/\S+$|^(\d+|webcam)$/i
 
 export function CameraForm(props: CameraFormProps) {
   const { open, camera, onClose } = props
@@ -53,7 +54,9 @@ function Form({ labId, camera, onClose, onSaved }: CameraFormProps) {
     const next: Record<string, string> = {}
     if (!name.trim()) next.name = 'Enter a name.'
     else if (name.trim().length > 80) next.name = 'At most 80 characters.'
-    if (changeUrl && !URL_PATTERN.test(url.trim())) next.url = 'Enter a stream URL starting with rtsp://'
+    if (changeUrl && !URL_PATTERN.test(url.trim())) {
+      next.url = 'Enter a valid stream URL (e.g. webcam://0, http://..., or rtsp://...)'
+    }
     setErrors(next)
     setFormError(null)
     if (Object.keys(next).length) return
@@ -117,24 +120,46 @@ function Form({ labId, camera, onClose, onSaved }: CameraFormProps) {
         </fieldset>
 
         {changeUrl ? (
-          <FormField
-            htmlFor={`${id}-url`}
-            label="Stream URL"
-            required
-            error={errors.url}
-            hint="rtsp://user:password@192.168.1.50:554/path — a phone IP-camera app also works for testing. The password is never shown again."
-          >
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label htmlFor={`${id}-url`} className="block text-sm font-medium text-gray-900">
+                Stream URL <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setUrl('webcam://0')
+                  if (!name.trim()) setName('Laptop Webcam')
+                  setErrors((prev) => {
+                    const copy = { ...prev }
+                    delete copy.url
+                    return copy
+                  })
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700 bg-sky-50 hover:bg-sky-100 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+              >
+                <Laptop className="h-3.5 w-3.5" />
+                Use Laptop Camera (webcam://0)
+              </button>
+            </div>
             <Input
               id={`${id}-url`}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="rtsp://"
+              placeholder="webcam://0, http://192.168.1.X:4747/video, or rtsp://"
               className="font-mono"
               autoComplete="off"
               spellCheck={false}
               aria-invalid={Boolean(errors.url)}
             />
-          </FormField>
+            {errors.url ? (
+              <p className="text-xs text-red-600">{errors.url}</p>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Use <code className="font-mono text-gray-700 bg-gray-100 px-1 py-0.5 rounded">webcam://0</code> for your built-in laptop camera, or enter an RTSP / phone stream URL.
+              </p>
+            )}
+          </div>
         ) : (
           <div className="space-y-1.5">
             <p className="text-sm font-medium text-gray-900">Stream URL</p>
