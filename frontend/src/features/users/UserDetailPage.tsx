@@ -1,11 +1,13 @@
-import { ArrowRight, History, IdCard, ImagePlus, Pencil, Power, PowerOff, ScanFace, Trash2 } from 'lucide-react'
+import { ArrowRight, Flag, History, IdCard, ImagePlus, Pencil, Power, PowerOff, ScanFace, ShieldAlert, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { listEntries } from '@/api/entries'
 import { errorMessage } from '@/api/errors'
+import { listFlags } from '@/api/flags'
 import { deletePerson, getPerson, listFaces, updatePerson } from '@/api/persons'
-import type { EntryLogRead } from '@/api/types'
+import type { EntryLogRead, FlagRead } from '@/api/types'
 import { ActiveBadge } from '@/components/common/badges'
+import { FLAG_TYPES, FlagStatusBadge, FlagTypeIcon } from '@/components/common/flags'
 import { Avatar } from '@/components/ui/Avatar'
 import { PersonForm } from '@/components/common/PersonForm'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -23,7 +25,7 @@ import { EntriesTable } from '@/features/entry-logs/components/EntriesTable'
 import { EntryDetail } from '@/features/entry-logs/components/EntryDetail'
 import { useAsync } from '@/hooks/useAsync'
 import { MIN_ENROLLMENT_PHOTOS, PERSON_TYPE_LABELS } from '@/lib/constants'
-import { formatDate, pluralize } from '@/lib/format'
+import { formatDate, formatRelative, formatTime, pluralize } from '@/lib/format'
 import { AddFacesModal } from './components/AddFacesModal'
 import { FaceList } from './components/FaceList'
 
@@ -39,6 +41,10 @@ export function UserDetailPage() {
   const person = useAsync(() => getPerson(id), [id])
   const faces = useAsync(() => listFaces(id), [id])
   const entries = useAsync(() => listEntries({ person_id: id, size: 10 }), [id])
+  const flags = useAsync(async () => {
+    const all = await listFlags()
+    return all.filter((f) => f.persons_inside.some((pi) => pi.person?.id === id))
+  }, [id])
 
   const p = person.data
   if (person.loading && !p) return <LoadingState />
@@ -47,8 +53,10 @@ export function UserDetailPage() {
   const refresh = () => {
     person.reload()
     faces.reload()
+    flags.reload()
   }
   const needsPhotos = p.embedding_count < MIN_ENROLLMENT_PHOTOS
+  const taggedIncidents = flags.data?.filter((f) => f.persons_inside.some((pi) => pi.person?.id === id && pi.responsible)) ?? []
 
   return (
     <>
@@ -90,6 +98,19 @@ export function UserDetailPage() {
       />
 
       <div className="space-y-6">
+        {taggedIncidents.length > 0 && (
+          <Alert
+            tone="error"
+            title={`${pluralize(taggedIncidents.length, 'confirmed incident')} tagged`}
+            action={
+              <ButtonLink size="sm" variant="danger" to={`/flags?status=CONFIRMED`}>
+                Review flags
+              </ButtonLink>
+            }
+          >
+            This person was identified as responsible for {taggedIncidents.map((f: FlagRead) => FLAG_TYPES[f.type].label.toLowerCase()).join(', ')}.
+          </Alert>
+        )}
         {!p.active && (
           <Alert title="This person is inactive">Bantay will not recognize them until they are activated again.</Alert>
         )}
@@ -154,6 +175,49 @@ export function UserDetailPage() {
             {faces.data ? <FaceList personId={p.id} faces={faces.data} onChanged={refresh} /> : <LoadingState />}
           </Section>
         </div>
+
+        {flags.data && flags.data.length > 0 && (
+          <Section
+            title="Flagged incidents"
+            description="Behaviour alerts in labs where this person was present"
+            icon={<Flag />}
+            flush
+          >
+            <ul className="divide-y divide-gray-100">
+              {flags.data.map((f: FlagRead) => {
+                const isResp = f.persons_inside.some((pi) => pi.person?.id === id && pi.responsible)
+                return (
+                  <li key={f.id} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <FlagTypeIcon type={f.type} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Link to={`/flags/${f.id}`} className="truncate text-sm font-semibold text-navy-900 hover:underline">
+                            {FLAG_TYPES[f.type].label}
+                          </Link>
+                          {isResp && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 ring-1 ring-red-600/15">
+                              <ShieldAlert className="size-3" />
+                              Tagged responsible
+                            </span>
+                          )}
+                          <FlagStatusBadge status={f.status} />
+                        </div>
+                        <p className="truncate text-xs text-gray-500">
+                          {f.lab_name} · {f.camera_name ?? 'Room'} · {formatTime(f.occurred_at)} ({formatRelative(f.occurred_at)})
+                        </p>
+                      </div>
+                    </div>
+                    <ButtonLink to={`/flags/${f.id}`} size="sm" variant="ghost">
+                      Evidence
+                      <ArrowRight />
+                    </ButtonLink>
+                  </li>
+                )
+              })}
+            </ul>
+          </Section>
+        )}
 
         <Section
           title="Recent entries"
