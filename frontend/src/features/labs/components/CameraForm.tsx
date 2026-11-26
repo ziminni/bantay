@@ -162,11 +162,29 @@ function Form({ labId, camera, onClose, onSaved }: CameraFormProps) {
           </div>
         ) : (
           <div className="space-y-1.5">
-            <p className="text-sm font-medium text-gray-900">Stream URL</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-gray-900">Stream URL</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setChangeUrl(true)
+                  setUrl('webcam://0')
+                  setErrors((prev) => {
+                    const copy = { ...prev }
+                    delete copy.url
+                    return copy
+                  })
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700 bg-sky-50 hover:bg-sky-100 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+              >
+                <Laptop className="h-3.5 w-3.5" />
+                Switch to Laptop Camera (webcam://0)
+              </button>
+            </div>
             <div className="flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
               <code className="truncate text-sm text-gray-700">{camera?.rtsp_url}</code>
               <Button size="sm" variant="ghost" onClick={() => setChangeUrl(true)}>
-                Change
+                Change URL
               </Button>
             </div>
           </div>
