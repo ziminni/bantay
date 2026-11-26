@@ -295,3 +295,72 @@ export interface HealthResponse {
   cameras_offline: number
   cameras: CameraHealth[]
 }
+
+// ---------------------------------------------------------------- behaviour flags
+// Shapes proposed for /api/v1/flags (slides 23, 25 and 30 of the SIA deck).
+// The backend does not serve these yet; see src/api/flags.ts.
+export type FlagType = 'RUNNING' | 'EQUIPMENT_REMOVAL' | 'UNAUTHORIZED_USE' | 'UNKNOWN_PERSON'
+export type FlagStatus = 'PENDING' | 'CONFIRMED' | 'DISMISSED'
+
+/** The measured values that made a rule fire, so every flag can be explained. */
+export interface FlagEvidence {
+  rule_set: string
+  metric: string
+  value: number
+  threshold: number
+  unit: string
+  /** 'above': fires when value > threshold (speed); 'below': fires when value < threshold (similarity). */
+  direction: 'above' | 'below'
+  held_seconds: number | null
+  required_seconds: number | null
+  track_id: number | null
+  zone: string | null
+  object: string | null
+}
+
+/** Someone with an open visit in the lab when the flag was raised. */
+export interface FlagPersonRead {
+  entry_id: number
+  entered_at: DateTimeString
+  person: EntryPersonRead | null
+  /** Ticked by the reviewer: this is the person who did it. */
+  responsible: boolean
+}
+
+export interface FlagRead {
+  id: number
+  type: FlagType
+  status: FlagStatus
+  occurred_at: DateTimeString
+  lab_id: number
+  lab_name: string | null
+  camera_id: number | null
+  camera_name: string | null
+  evidence: FlagEvidence
+  snapshot_path: string | null
+  clip_path: string | null
+  /** Seconds into the 6-second clip at which the rule fired. */
+  trigger_offset: number
+  persons_inside: FlagPersonRead[]
+  reviewed_by: string | null
+  reviewed_at: DateTimeString | null
+  review_note: string | null
+}
+
+export interface FlagListParams {
+  status?: FlagStatus
+  type?: FlagType
+  lab_id?: number
+}
+
+export interface FlagReview {
+  status: Exclude<FlagStatus, 'PENDING'>
+  note?: string | null
+  responsible_entry_ids?: number[]
+}
+
+export interface FlagCounts {
+  PENDING: number
+  CONFIRMED: number
+  DISMISSED: number
+}
