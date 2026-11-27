@@ -36,7 +36,7 @@ def _clean():
     """Empty every table before each test."""
     with engine.begin() as conn:
         conn.execute(
-            text("TRUNCATE entry_log, face_embedding, camera, lab, person RESTART IDENTITY CASCADE")
+            text("TRUNCATE behavior_flag, entry_log, face_embedding, camera, lab, person RESTART IDENTITY CASCADE")
         )
     yield
 

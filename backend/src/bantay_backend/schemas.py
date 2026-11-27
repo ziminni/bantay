@@ -18,6 +18,13 @@ PersonTypeLiteral = Literal["STUDENT", "FACULTY", "STAFF"]
 CameraRoleLiteral = Literal["ENTRY", "ROOM"]
 CameraStatusLiteral = Literal["ONLINE", "OFFLINE", "DISABLED"]
 EntryStatusLiteral = Literal["MATCHED", "UNKNOWN"]
+FlagTypeLiteral = Literal[
+    "RUNNING",
+    "EQUIPMENT_REMOVAL",
+    "UNAUTHORIZED_USE",
+    "UNKNOWN_PERSON",
+]
+FlagStatusLiteral = Literal["PENDING", "CONFIRMED", "DISMISSED"]
 
 _RTSP_CREDENTIALS = re.compile(r"://([^:/@]+):([^@]+)@")
 
@@ -411,3 +418,70 @@ class ErrorDetail(BaseModel):
     """Standard error body returned by the API."""
 
     detail: str
+
+
+# --------------------------------------------------------------------------
+# Behaviour Flags
+# --------------------------------------------------------------------------
+class FlagEvidence(BaseModel):
+    rule_set: str = "r1"
+    metric: str
+    value: float
+    threshold: float
+    unit: str = ""
+    direction: Literal["above", "below"] = "above"
+    held_seconds: float | None = None
+    required_seconds: float | None = None
+    track_id: int | None = None
+    zone: str | None = None
+    object: str | None = None
+
+
+class FlagPersonRead(BaseModel):
+    entry_id: int
+    entered_at: dt.datetime
+    person: EntryPersonRead | None = None
+    responsible: bool = False
+
+
+class FlagRead(ORMModel):
+    id: int
+    type: FlagTypeLiteral
+    status: FlagStatusLiteral
+    occurred_at: dt.datetime
+    lab_id: int
+    lab_name: str | None = None
+    camera_id: int | None = None
+    camera_name: str | None = None
+    evidence: FlagEvidence
+    snapshot_path: str | None = None
+    clip_path: str | None = None
+    trigger_offset: float = 3.0
+    persons_inside: list[FlagPersonRead] = Field(default_factory=list)
+    reviewed_by: str | None = None
+    reviewed_at: dt.datetime | None = None
+    review_note: str | None = None
+
+
+class FlagReview(BaseModel):
+    status: Literal["CONFIRMED", "DISMISSED"]
+    note: str | None = None
+    responsible_entry_ids: list[int] | None = None
+
+
+class FlagCounts(BaseModel):
+    PENDING: int = 0
+    CONFIRMED: int = 0
+    DISMISSED: int = 0
+
+
+class FlagCreate(BaseModel):
+    type: FlagTypeLiteral
+    lab_id: int
+    camera_id: int | None = None
+    occurred_at: dt.datetime | None = None
+    evidence: FlagEvidence
+    snapshot_path: str | None = None
+    clip_path: str | None = None
+    trigger_offset: float = 3.0
+

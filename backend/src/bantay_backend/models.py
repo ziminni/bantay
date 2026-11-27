@@ -19,6 +19,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     String,
     Text,
     Time,
@@ -50,6 +51,19 @@ class CameraStatus(StrEnum):
 class EntryStatus(StrEnum):
     MATCHED = "MATCHED"
     UNKNOWN = "UNKNOWN"
+
+
+class FlagType(StrEnum):
+    RUNNING = "RUNNING"
+    EQUIPMENT_REMOVAL = "EQUIPMENT_REMOVAL"
+    UNAUTHORIZED_USE = "UNAUTHORIZED_USE"
+    UNKNOWN_PERSON = "UNKNOWN_PERSON"
+
+
+class FlagStatus(StrEnum):
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+    DISMISSED = "DISMISSED"
 
 
 def _utcnow() -> dt.datetime:
@@ -156,6 +170,9 @@ class Lab(Base):
         back_populates="lab", cascade="all, delete-orphan", passive_deletes=True
     )
     entries: Mapped[list["EntryLog"]] = relationship(back_populates="lab")
+    flags: Mapped[list["BehaviorFlag"]] = relationship(
+        back_populates="lab", cascade="all, delete-orphan", passive_deletes=True
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -236,4 +253,57 @@ class EntryLog(Base):
         CheckConstraint("status IN ('MATCHED','UNKNOWN')", name="ck_entry_status"),
         Index("ix_entry_log_lab_entered", "lab_id", "entered_at"),
         Index("ix_entry_log_person_entered", "person_id", "entered_at"),
+    )
+
+
+class BehaviorFlag(Base):
+    """An incident or suspicious activity flagged for review.
+
+    Flag types: RUNNING, EQUIPMENT_REMOVAL, UNAUTHORIZED_USE, UNKNOWN_PERSON.
+    Status lifecycle: PENDING -> CONFIRMED | DISMISSED (can reopen back to PENDING).
+    """
+
+    __tablename__ = "behavior_flag"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    type: Mapped[str] = mapped_column(String(32), index=True)
+    status: Mapped[str] = mapped_column(
+        String(16), default=FlagStatus.PENDING, index=True
+    )
+    occurred_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, index=True
+    )
+    lab_id: Mapped[int] = mapped_column(
+        ForeignKey("lab.id", ondelete="CASCADE"), index=True
+    )
+    camera_id: Mapped[int | None] = mapped_column(
+        ForeignKey("camera.id", ondelete="SET NULL"), default=None, index=True
+    )
+    evidence: Mapped[dict] = mapped_column(JSON, default=dict)
+    snapshot_path: Mapped[str | None] = mapped_column(String(255), default=None)
+    clip_path: Mapped[str | None] = mapped_column(String(255), default=None)
+    trigger_offset: Mapped[float] = mapped_column(Float, default=3.0)
+    responsible_entry_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
+    reviewed_by: Mapped[str | None] = mapped_column(String(100), default=None)
+    reviewed_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+    review_note: Mapped[str | None] = mapped_column(Text, default=None)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    lab: Mapped[Lab] = relationship(back_populates="flags")
+    camera: Mapped[Camera | None] = relationship()
+
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('RUNNING','EQUIPMENT_REMOVAL','UNAUTHORIZED_USE','UNKNOWN_PERSON')",
+            name="ck_behavior_flag_type",
+        ),
+        CheckConstraint(
+            "status IN ('PENDING','CONFIRMED','DISMISSED')",
+            name="ck_behavior_flag_status",
+        ),
+        Index("ix_behavior_flag_lab_occurred", "lab_id", "occurred_at"),
     )

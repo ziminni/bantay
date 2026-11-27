@@ -60,27 +60,28 @@ TAGS_METADATA = [
             "entry. Useful for measuring accuracy and choosing the threshold."
         ),
     },
+    {
+        "name": "Behavior Flags",
+        "description": "Suspicious activity detection queue, incident review, and decision audit logs.",
+    },
 ]
 
 DESCRIPTION = f"""
-**Bantay** records who enters each computer laboratory, automatically, from the
-existing CCTV cameras.
+**Bantay** records who enters each computer laboratory and flags anomalous behavior
+automatically from existing CCTV cameras.
 
-A camera worker reads its RTSP stream, detects a face, turns it into a
-512-dimensional ArcFace embedding, finds the closest enrolled person with a
-pgvector cosine search, and writes one entry log when the similarity reaches the
-laboratory's threshold and the person is not within the cooldown period. A face
-that reaches nobody is recorded once as an `UNKNOWN` entry.
-
-**Scope.** Bantay logs *entries only*. There is no exit, duration, attendance or
-behaviour-flagging concept in this API.
+A camera worker reads its RTSP stream, detects faces, produces 512-dimensional
+ArcFace embeddings, matches against enrolled persons via pgvector cosine search,
+and logs entries when the match reaches the laboratory threshold and is outside the cooldown period.
+Unknown faces, after-hours visits, and anomalous behaviors automatically generate incident flags
+for administrative review.
 
 ### Where to start
 1. `POST {settings.api_prefix}/labs` — create a laboratory.
 2. `POST {settings.api_prefix}/persons` — create a person with `consent_given: true`.
 3. `POST {settings.api_prefix}/persons/{{id}}/faces` — upload 3 to 5 face photos.
 4. `POST {settings.api_prefix}/cameras` — add the entrance camera's RTSP URL.
-5. `GET  {settings.api_prefix}/entries` — watch the log fill up.
+5. `GET  {settings.api_prefix}/flags` — review suspicious behavior incidents.
 
 Use `POST {settings.api_prefix}/recognize` to test matching against a still image
 without writing anything, and `POST {settings.api_prefix}/entries` to record an

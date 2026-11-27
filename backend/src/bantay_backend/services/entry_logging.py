@@ -24,7 +24,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..models import Camera, EntryLog, EntryStatus, Lab
+from ..models import (
+    BehaviorFlag,
+    Camera,
+    EntryLog,
+    EntryStatus,
+    FlagStatus,
+    FlagType,
+    Lab,
+)
 from .matching import find_closest
 
 logger = logging.getLogger(__name__)
@@ -137,6 +145,34 @@ def record_entry(
         )
         db.add(entry)
         db.flush()
+
+        # Automatic behaviour flag: Unknown person entry
+        unknown_flag = BehaviorFlag(
+            type=FlagType.UNKNOWN_PERSON,
+            status=FlagStatus.PENDING,
+            occurred_at=now,
+            lab_id=lab.id,
+            camera_id=camera.id if camera else None,
+            evidence={
+                "rule_set": "Face",
+                "metric": "Best similarity after voting",
+                "value": round(float(similarity), 2) if similarity is not None else 0.0,
+                "threshold": round(float(threshold), 2),
+                "unit": "",
+                "direction": "below",
+                "held_seconds": None,
+                "required_seconds": None,
+                "track_id": None,
+                "zone": "Door",
+                "object": None,
+            },
+            snapshot_path=entry.snapshot_path,
+            clip_path=None,
+            trigger_offset=3.0,
+            responsible_entry_ids=[],
+        )
+        db.add(unknown_flag)
+
         return EntryOutcome(
             logged=True,
             reason="below_threshold_unknown",
@@ -162,6 +198,41 @@ def record_entry(
     )
     db.add(entry)
     db.flush()
+
+    # Check if entry happened outside lab schedule
+    if lab.open_time and lab.close_time:
+        entry_time = now.time()
+        outside = False
+        if lab.open_time <= lab.close_time:
+            outside = not (lab.open_time <= entry_time <= lab.close_time)
+        else:
+            outside = not (entry_time >= lab.open_time or entry_time <= lab.close_time)
+        if outside:
+            unauthorized_flag = BehaviorFlag(
+                type=FlagType.UNAUTHORIZED_USE,
+                status=FlagStatus.PENDING,
+                occurred_at=now,
+                lab_id=lab.id,
+                camera_id=camera.id if camera else None,
+                evidence={
+                    "rule_set": "Schedule",
+                    "metric": "Entry outside lab hours",
+                    "value": 1.0,
+                    "threshold": 0.0,
+                    "unit": "s",
+                    "direction": "above",
+                    "held_seconds": None,
+                    "required_seconds": None,
+                    "track_id": None,
+                    "zone": lab.name,
+                    "object": None,
+                },
+                snapshot_path=None,
+                clip_path=None,
+                trigger_offset=3.0,
+                responsible_entry_ids=[],
+            )
+            db.add(unauthorized_flag)
 
     logger.info(
         "Entry logged: %s (%s) at %s via %s, similarity=%.3f",
