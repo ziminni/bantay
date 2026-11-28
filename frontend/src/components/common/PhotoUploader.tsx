@@ -24,7 +24,7 @@ interface PhotoUploaderProps {
  * Plus traditional file upload.
  */
 export function PhotoUploader({ files, onChange, max, disabled }: PhotoUploaderProps) {
-  const [mode, setMode] = useState<'camera' | 'phone' | 'upload'>('phone')
+  const [mode, setMode] = useState<'camera' | 'phone' | 'upload'>('camera')
   const [problems, setProblems] = useState<string[]>([])
 
   const previews = useMemo(() => files.map((f) => ({ file: f, url: URL.createObjectURL(f) })), [files])
