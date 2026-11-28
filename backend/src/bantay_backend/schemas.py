@@ -470,6 +470,7 @@ class FlagRead(ORMModel):
     camera_name: str | None = None
     evidence: FlagEvidence
     snapshot_path: str | None = None
+    snapshot_paths: list[str] = Field(default_factory=list)
     clip_path: str | None = None
     trigger_offset: float = 3.0
     zones: list[CameraZone] = Field(default_factory=list)
@@ -498,6 +499,7 @@ class FlagCreate(BaseModel):
     occurred_at: dt.datetime | None = None
     evidence: FlagEvidence
     snapshot_path: str | None = None
+    snapshot_paths: list[str] = Field(default_factory=list)
     clip_path: str | None = None
     trigger_offset: float = 3.0
 

@@ -134,6 +134,44 @@ def record_entry(
     # Nobody enrolled yet, or the closest face is too far away: unknown person.
     if match is None or match.similarity < threshold:
         similarity = match.similarity if match else None
+
+        # Check if there is an active pending flag for an unknown person on this camera within cooldown
+        unknown_cooldown = min(cooldown, 60)
+        recent_flag = db.execute(
+            select(BehaviorFlag)
+            .where(
+                BehaviorFlag.type == FlagType.UNKNOWN_PERSON,
+                BehaviorFlag.status == FlagStatus.PENDING,
+                BehaviorFlag.lab_id == lab.id,
+                BehaviorFlag.camera_id == (camera.id if camera else None),
+                BehaviorFlag.occurred_at >= now - dt.timedelta(seconds=unknown_cooldown),
+            )
+            .order_by(BehaviorFlag.occurred_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+
+        if recent_flag is not None:
+            # Same incident: collect additional snapshot angles into the same flag instead of creating duplicate cards
+            evidence_data = dict(recent_flag.evidence) if isinstance(recent_flag.evidence, dict) else {}
+            snapshots = list(evidence_data.get("snapshots", []))
+            if not snapshots and recent_flag.snapshot_path:
+                snapshots.append(recent_flag.snapshot_path)
+
+            if len(snapshots) < 15 and frame is not None:
+                new_snap = save_snapshot(frame)
+                if new_snap and new_snap not in snapshots:
+                    snapshots.append(new_snap)
+                    evidence_data["snapshots"] = snapshots
+                    recent_flag.evidence = evidence_data
+                    db.flush()
+
+            return EntryOutcome(
+                logged=False,
+                reason="cooldown",
+                similarity=similarity,
+            )
+
+        snap = save_snapshot(frame)
         entry = EntryLog(
             person_id=None,
             lab_id=lab.id,
@@ -141,7 +179,7 @@ def record_entry(
             entered_at=now,
             similarity=similarity,
             status=EntryStatus.UNKNOWN,
-            snapshot_path=save_snapshot(frame),
+            snapshot_path=snap,
         )
         db.add(entry)
         db.flush()
@@ -165,10 +203,11 @@ def record_entry(
                 "track_id": None,
                 "zone": "Door",
                 "object": None,
+                "snapshots": [snap] if snap else [],
             },
             snapshot_path=entry.snapshot_path,
             clip_path=None,
-            trigger_offset=3.0,
+            trigger_offset=0.0,
             responsible_entry_ids=[],
         )
         db.add(unknown_flag)

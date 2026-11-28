@@ -40,6 +40,11 @@ export function FlagQueue({ flags, selectedId, search }: { flags: FlagRead[]; se
                   <span>
                     {f.persons_inside.length} inside
                   </span>
+                  {f.snapshot_paths && f.snapshot_paths.length > 1 && (
+                    <span className="rounded bg-sky-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-sky-800 ring-1 ring-sky-600/20">
+                      📸 {f.snapshot_paths.length}
+                    </span>
+                  )}
                   {f.status !== 'PENDING' && (
                     <span className={cn('ml-auto font-medium', f.status === 'CONFIRMED' ? 'text-red-700' : 'text-gray-500')}>
                       {f.status === 'CONFIRMED' ? 'Confirmed' : 'Dismissed'}

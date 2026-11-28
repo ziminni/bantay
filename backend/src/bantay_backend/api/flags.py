@@ -86,6 +86,14 @@ def _build_flag_read(db: Session, flag: BehaviorFlag) -> FlagRead:
                 snapshot_path = e.snapshot_path
                 break
 
+    snapshot_paths = []
+    if isinstance(flag.evidence, dict) and "snapshots" in flag.evidence:
+        snapshot_paths = [s for s in flag.evidence["snapshots"] if s]
+    if snapshot_path and snapshot_path not in snapshot_paths:
+        snapshot_paths.insert(0, snapshot_path)
+    if not snapshot_path and snapshot_paths:
+        snapshot_path = snapshot_paths[0]
+
     return FlagRead(
         id=flag.id,
         type=flag.type,
@@ -97,6 +105,7 @@ def _build_flag_read(db: Session, flag: BehaviorFlag) -> FlagRead:
         camera_name=flag.camera.name if flag.camera else None,
         evidence=evidence,
         snapshot_path=snapshot_path,
+        snapshot_paths=snapshot_paths,
         clip_path=flag.clip_path,
         trigger_offset=flag.trigger_offset,
         zones=flag.camera.zones if flag.camera and flag.camera.zones else [],

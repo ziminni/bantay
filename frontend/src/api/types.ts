@@ -352,6 +352,7 @@ export interface FlagRead {
   camera_name: string | null
   evidence: FlagEvidence
   snapshot_path: string | null
+  snapshot_paths?: string[]
   clip_path: string | null
   /** Seconds into the 6-second clip at which the rule fired. */
   trigger_offset: number
