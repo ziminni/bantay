@@ -31,8 +31,10 @@ from ..schemas import (
     EntryLogRead,
     EntryPersonRead,
     FaceMatch,
+    FacePoseRead,
     ManualEntryCreate,
     Page,
+    PoseTrackResult,
     RecognizeResult,
 )
 from ..services.entry_logging import in_cooldown, record_entry
@@ -368,6 +370,53 @@ async def recognize(
         )
 
     return RecognizeResult(engine=engine.name, threshold=used, faces=out)
+
+
+@recognition_router.post(
+    "/recognize/pose",
+    response_model=PoseTrackResult,
+    summary="Estimate live 3D head pose for guided face enrollment",
+    description=(
+        "Runs lightweight face detection and 68-point 3D landmark head-pose "
+        "estimation without computing ArcFace embeddings or writing logs."
+    ),
+)
+async def recognize_pose(
+    file: UploadFile = File(..., description="A downscaled webcam frame."),
+) -> PoseTrackResult:
+    engine = get_engine()
+    if not engine.is_ready():
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The recognition engine is not available.",
+        )
+
+    raw = await file.read()
+    image = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail="Not a readable image file."
+        )
+
+    pose = engine.detect_pose(image)
+    if pose is None:
+        return PoseTrackResult(engine=engine.name, detected=False, pose=None)
+
+    return PoseTrackResult(
+        engine=engine.name,
+        detected=True,
+        pose=FacePoseRead(
+            yaw_deg=pose.yaw_deg,
+            pitch_deg=pose.pitch_deg,
+            roll_deg=pose.roll_deg,
+            nose_x_ratio=pose.nose_x_ratio,
+            nose_y_ratio=pose.nose_y_ratio,
+            center_x=pose.center_x,
+            center_y=pose.center_y,
+            size=pose.size,
+            det_score=pose.det_score,
+        ),
+    )
 
 
 @recognition_router.post(

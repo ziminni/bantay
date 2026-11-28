@@ -260,6 +260,24 @@ export interface RecognizeResult {
   faces: DetectedFaceRead[]
 }
 
+export interface FacePoseRead {
+  yaw_deg: number
+  pitch_deg: number
+  roll_deg: number
+  nose_x_ratio: number
+  nose_y_ratio: number
+  center_x: number
+  center_y: number
+  size: number
+  det_score: number
+}
+
+export interface PoseTrackResult {
+  engine: string
+  detected: boolean
+  pose: FacePoseRead | null
+}
+
 // ---------------------------------------------------------------- dashboard
 export interface HourBucket {
   hour: number

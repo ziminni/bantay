@@ -19,6 +19,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Protocol
 
+import cv2
 import numpy as np
 
 from ..config import settings
@@ -40,6 +41,21 @@ class DetectedFace:
         return max(0.0, x2 - x1) * max(0.0, y2 - y1)
 
 
+@dataclass(slots=True)
+class FacePose:
+    """Head pose and mirrored screen position for live enrollment guidance."""
+
+    yaw_deg: float
+    pitch_deg: float
+    roll_deg: float
+    nose_x_ratio: float
+    nose_y_ratio: float
+    center_x: float
+    center_y: float
+    size: float
+    det_score: float
+
+
 def l2_normalize(vec: np.ndarray) -> np.ndarray:
     """Scale a vector to unit length so that dot product equals cosine similarity."""
     vec = np.asarray(vec, dtype=np.float32).ravel()
@@ -58,6 +74,10 @@ class RecognitionEngine(Protocol):
 
     def detect(self, frame: np.ndarray) -> list[DetectedFace]:
         """Return every face in a BGR frame, with a normalized embedding."""
+        ...
+
+    def detect_pose(self, frame: np.ndarray) -> FacePose | None:
+        """Return the 3D head pose of the largest face without running ArcFace."""
         ...
 
 
@@ -82,6 +102,9 @@ class NullEngine:
             )
             self._warned = True
         return []
+
+    def detect_pose(self, frame: np.ndarray) -> FacePose | None:
+        return None
 
 
 class _Adapter:
@@ -164,6 +187,73 @@ class InsightFaceEngine:
                 )
             )
         return out
+
+    def detect_pose(self, frame: np.ndarray) -> FacePose | None:
+        from insightface.app.common import Face  # noqa: PLC0415
+
+        h, w = frame.shape[:2]
+        if h == 0 or w == 0:
+            return None
+        if max(h, w) > 320:
+            scale = 320.0 / float(max(h, w))
+            small = cv2.resize(frame, (max(1, int(w * scale)), max(1, int(h * scale))))
+        else:
+            small = frame
+
+        sh, sw = small.shape[:2]
+        lmk3d = self._app.models.get("landmark_3d_68")
+
+        with self._lock:
+            bboxes, kpss = self._app.det_model.detect(small, input_size=(320, 320), max_num=0)
+            if bboxes is None or len(bboxes) == 0:
+                return None
+
+            idx = max(
+                range(len(bboxes)),
+                key=lambda i: max(0.0, float(bboxes[i, 2] - bboxes[i, 0]))
+                * max(0.0, float(bboxes[i, 3] - bboxes[i, 1])),
+            )
+            x1, y1, x2, y2, score = (float(v) for v in bboxes[idx])
+            kps = kpss[idx] if kpss is not None else None
+            face_obj = Face(bbox=bboxes[idx, 0:4], kps=kps, det_score=score)
+            if lmk3d is not None:
+                lmk3d.get(small, face_obj)
+
+        # Convert to mirrored selfie coordinates matching the UI preview (-scale-x-100):
+        # negative yaw = user's left, positive yaw = user's right;
+        # negative pitch = chin tilted up, positive pitch = head tilted down.
+        pose = getattr(face_obj, "pose", None)
+        if pose is not None and len(pose) >= 3:
+            pitch_deg = -float(pose[0])
+            yaw_deg = -float(pose[1])
+            roll_deg = -float(pose[2])
+        else:
+            pitch_deg = 0.0
+            yaw_deg = 0.0
+            roll_deg = 0.0
+
+        if kps is not None and len(kps) >= 5:
+            eye_mid_x = float((kps[0][0] + kps[1][0]) * 0.5)
+            eye_dist = max(float(np.hypot(kps[1][0] - kps[0][0], kps[1][1] - kps[0][1])), 1.0)
+            eye_mid_y = float((kps[0][1] + kps[1][1]) * 0.5)
+            mouth_mid_y = float((kps[3][1] + kps[4][1]) * 0.5)
+            nose_x_ratio = -float((kps[2][0] - eye_mid_x) / eye_dist)
+            nose_y_ratio = float((kps[2][1] - eye_mid_y) / max(mouth_mid_y - eye_mid_y, 1.0))
+        else:
+            nose_x_ratio = yaw_deg / 45.0
+            nose_y_ratio = 0.56
+
+        return FacePose(
+            yaw_deg=yaw_deg,
+            pitch_deg=pitch_deg,
+            roll_deg=roll_deg,
+            nose_x_ratio=nose_x_ratio,
+            nose_y_ratio=nose_y_ratio,
+            center_x=1.0 - float((x1 + x2) * 0.5 / max(sw, 1)),
+            center_y=float((y1 + y2) * 0.5 / max(sh, 1)),
+            size=float((x2 - x1) / max(sw, 1)),
+            det_score=score,
+        )
 
 
 _engine: RecognitionEngine | None = None

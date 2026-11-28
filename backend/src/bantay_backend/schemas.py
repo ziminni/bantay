@@ -375,6 +375,24 @@ class RecognizeResult(BaseModel):
     faces: list[DetectedFaceRead]
 
 
+class FacePoseRead(BaseModel):
+    yaw_deg: float
+    pitch_deg: float
+    roll_deg: float
+    nose_x_ratio: float
+    nose_y_ratio: float
+    center_x: float
+    center_y: float
+    size: float
+    det_score: float
+
+
+class PoseTrackResult(BaseModel):
+    engine: str
+    detected: bool
+    pose: FacePoseRead | None = None
+
+
 # --------------------------------------------------------------------------
 # Dashboard statistics
 # --------------------------------------------------------------------------

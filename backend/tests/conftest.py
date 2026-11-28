@@ -20,7 +20,7 @@ os.environ.setdefault("RECOGNITION_ENGINE", "null")
 
 from bantay_backend.db import Base, SessionLocal, engine  # noqa: E402
 from bantay_backend.main import app  # noqa: E402
-from bantay_backend.services.recognition import DetectedFace, l2_normalize  # noqa: E402
+from bantay_backend.services.recognition import DetectedFace, FacePose, l2_normalize  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -77,11 +77,19 @@ class StubEngine:
 
     name = "stub"
 
-    def __init__(self, faces: list[DetectedFace] | None = None):
+    def __init__(
+        self,
+        faces: list[DetectedFace] | None = None,
+        pose: FacePose | None = None,
+    ):
         self.faces = faces or []
+        self.pose = pose
 
     def is_ready(self) -> bool:
         return True
 
     def detect(self, frame):
         return self.faces
+
+    def detect_pose(self, frame) -> FacePose | None:
+        return self.pose
