@@ -31,6 +31,7 @@ export function MobileEnrollPage() {
   const [fallbackUploadMode, setFallbackUploadMode] = useState(false)
 
   const galleryInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   // Verify session on load
   useEffect(() => {
@@ -229,16 +230,27 @@ export function MobileEnrollPage() {
               /* Fallback Manual Library Mode */
               <div className="space-y-4 bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-200">
-                  <span>Photo Library Upload</span>
+                  <span>Native Mobile Camera</span>
                   <button
                     type="button"
                     onClick={() => setFallbackUploadMode(false)}
                     className="text-[11px] text-amber-400 underline"
                   >
-                    Switch back to Live Camera
+                    Try Live Hands-Free Camera
                   </button>
                 </div>
 
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  className="hidden"
+                  onChange={(e) => {
+                    handleFiles(e.target.files)
+                    e.target.value = ''
+                  }}
+                />
                 <input
                   ref={galleryInputRef}
                   type="file"
@@ -253,10 +265,19 @@ export function MobileEnrollPage() {
 
                 <button
                   type="button"
-                  onClick={() => galleryInputRef.current?.click()}
-                  className="w-full py-3.5 rounded-xl border-2 border-dashed border-slate-700 hover:border-amber-400 text-xs font-semibold text-slate-300 transition"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="w-full py-3.5 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-md flex items-center justify-center gap-2 transition"
                 >
-                  Choose photos from photo library ({selectedFiles.length}/{MAX_ENROLLMENT_PHOTOS})
+                  <span>📸 Take Front Selfie</span>
+                  <span className="text-[10px] text-slate-800">({selectedFiles.length}/{MAX_ENROLLMENT_PHOTOS})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="w-full py-2.5 rounded-xl border border-dashed border-slate-700 hover:border-amber-400 text-xs font-medium text-slate-300 transition"
+                >
+                  Or pick from photo library
                 </button>
               </div>
             )}
