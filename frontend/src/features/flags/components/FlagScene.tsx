@@ -219,9 +219,22 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
               >
                 <ChevronRight className="size-5" />
               </button>
-              <span className="pointer-events-none absolute bottom-3 right-3 rounded bg-black/60 px-2 py-0.5 font-mono text-[11px] text-cream/90 backdrop-blur-sm z-10">
-                {currentIdx + 1} / {snapshots.length}
-              </span>
+
+              {/* Dot Indicators */}
+              <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5 z-10">
+                {snapshots.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setPhotoIdx(i)}
+                    aria-label={`Photo ${i + 1} of ${snapshots.length}`}
+                    className={cn(
+                      'h-2 rounded-full transition-all duration-200',
+                      i === currentIdx ? 'w-5 bg-marigold-400' : 'w-2 bg-white/40 hover:bg-white/70',
+                    )}
+                  />
+                ))}
+              </div>
             </>
           )}
 
