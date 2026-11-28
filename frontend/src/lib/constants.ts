@@ -4,7 +4,7 @@ import type { CameraRole, CameraStatus, EntryStatus, PersonType } from '@/api/ty
 export const DEFAULT_MATCH_THRESHOLD = 0.45
 export const DEFAULT_COOLDOWN_SECONDS = 120
 export const MIN_ENROLLMENT_PHOTOS = 3
-export const MAX_ENROLLMENT_PHOTOS = 5
+export const MAX_ENROLLMENT_PHOTOS = 12
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png']
 

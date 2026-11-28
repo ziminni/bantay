@@ -108,7 +108,7 @@ class Settings(BaseSettings):
         ),
     )
     min_enrollment_photos: int = Field(default=3, ge=1)
-    max_enrollment_photos: int = Field(default=5, ge=1)
+    max_enrollment_photos: int = Field(default=12, ge=1)
     min_enrollment_det_score: float = Field(
         default=0.60,
         description="Minimum detector confidence for an enrollment photo to be accepted.",

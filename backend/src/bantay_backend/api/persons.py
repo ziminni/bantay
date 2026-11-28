@@ -215,7 +215,7 @@ def list_faces(person_id: int, db: Session = Depends(get_db)) -> list[FaceEmbedd
     response_model=EnrollmentResult,
     summary="Upload face photos and store their embeddings",
     description=(
-        "Accepts 1 to 5 images. Each photo must contain exactly one face of "
+        "Accepts 1 to 12 images. Each photo must contain exactly one face of "
         "acceptable quality. Photos are converted to embeddings in memory and "
         "discarded: no image file is ever written to disk."
     ),

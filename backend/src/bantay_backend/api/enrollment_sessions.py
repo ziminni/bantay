@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Enrollment Sessions"])
 
 SESSION_TTL_MINUTES = 15
-MAX_PHOTOS_PER_SESSION = 5
+MAX_PHOTOS_PER_SESSION = 12
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 BASE_TEMP_DIR = Path(tempfile.gettempdir()) / "bantay_enrollment_sessions"
 BASE_TEMP_DIR.mkdir(parents=True, exist_ok=True)

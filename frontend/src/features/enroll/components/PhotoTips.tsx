@@ -15,10 +15,10 @@ export function PhotoTips() {
       <div className="border-t border-white/10 pt-4">
         <p className="flex items-center gap-1.5 font-medium text-cream">
           <span className="size-2 rounded-full bg-marigold-400" />
-          <span>Screen Flash Liveness</span>
+          <span>Banking-Style Biometric Scan</span>
         </p>
         <p className="mt-1 text-xs leading-relaxed text-navy-200">
-          The camera flashes colors during capture to verify natural skin reflection, matching banking-grade KYC anti-spoofing standards.
+          The automated scanner guides head movement (front, left, right, up, down, smile) to collect 10 multi-angle embeddings, maximizing CCTV recognition accuracy from different heights and perspectives.
         </p>
       </div>
     </div>

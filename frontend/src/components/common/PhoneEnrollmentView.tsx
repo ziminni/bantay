@@ -316,9 +316,9 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
                   2
                 </div>
                 <div className="text-xs">
-                  <p className="font-semibold text-gray-900">Capture 3–5 selfies</p>
+                  <p className="font-semibold text-gray-900">Follow banking head poses</p>
                   <p className="text-gray-500">
-                    Hold your phone at eye level. Capture front and slight angle photos in good lighting.
+                    Your phone will guide you through natural head movements (front, left, right, up, down, smile) to capture multiple angles.
                   </p>
                 </div>
               </div>

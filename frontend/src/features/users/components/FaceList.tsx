@@ -25,7 +25,7 @@ export function FaceList({
   const toast = useToast()
 
   if (faces.length === 0) {
-    return <EmptyState title="No face photos yet" description="Add 3 to 5 photos so this person can be recognized." />
+    return <EmptyState title="No face photos yet" description="Add 3 to 12 photos so this person can be recognized." />
   }
 
   return (

@@ -16,7 +16,7 @@ interface PhotoStepProps {
   onDone: (result: EnrollmentResult) => void
 }
 
-/** Step 2: choose 3 to 5 face photos and upload them. */
+/** Step 2: choose 3 to 12 face photos and upload them. */
 export function PhotoStep({ person, onBack, onDone }: PhotoStepProps) {
   const [files, setFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)

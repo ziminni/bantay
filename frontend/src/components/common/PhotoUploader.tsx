@@ -78,7 +78,7 @@ export function PhotoUploader({ files, onChange, max, disabled }: PhotoUploaderP
             <Camera className="size-4 text-marigold-500" />
             <span>Web Cam</span>
             <span className="rounded bg-marigold-100 px-1 py-0.2 text-[10px] font-semibold text-marigold-800">
-              Flash
+              Banking Scan
             </span>
           </button>
 
@@ -182,7 +182,7 @@ export function PhotoUploader({ files, onChange, max, disabled }: PhotoUploaderP
             </span>
           </div>
 
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <ul className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
             {previews.map((p, i) => (
               <li
                 key={p.url}

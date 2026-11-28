@@ -79,7 +79,7 @@ for administrative review.
 ### Where to start
 1. `POST {settings.api_prefix}/labs` — create a laboratory.
 2. `POST {settings.api_prefix}/persons` — create a person with `consent_given: true`.
-3. `POST {settings.api_prefix}/persons/{{id}}/faces` — upload 3 to 5 face photos.
+3. `POST {settings.api_prefix}/persons/{{id}}/faces` — upload 3 to 12 face photos.
 4. `POST {settings.api_prefix}/cameras` — add the entrance camera's RTSP URL.
 5. `GET  {settings.api_prefix}/flags` — review suspicious behavior incidents.
 
