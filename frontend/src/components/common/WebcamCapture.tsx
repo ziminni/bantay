@@ -58,6 +58,7 @@ function playBiometricChime(type: 'target_met' | 'snap' | 'complete') {
 interface WebcamCaptureProps {
   files: File[]
   onCapture: (file: File) => void
+  onComplete?: (files: File[]) => void
   max: number
   disabled?: boolean
   onSwitchToUpload?: () => void
@@ -66,6 +67,7 @@ interface WebcamCaptureProps {
 export function WebcamCapture({
   files,
   onCapture,
+  onComplete,
   max,
   disabled,
   onSwitchToUpload,
@@ -74,6 +76,7 @@ export function WebcamCapture({
   const streamRef = useRef<MediaStream | null>(null)
   const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const animFrameRef = useRef<number | null>(null)
+  const capturedPhotosRef = useRef<File[]>([])
 
   // Camera connection states
   const [cameraState, setCameraState] = useState<'starting' | 'running' | 'error' | 'unsupported'>('starting')
@@ -211,6 +214,7 @@ export function WebcamCapture({
             if (blob) {
               const filename = `face_${stepId}_angle${subIdx + 1}_${Date.now()}.jpg`
               const file = new File([blob], filename, { type: 'image/jpeg' })
+              capturedPhotosRef.current.push(file)
               onCapture(file)
             }
           },
@@ -375,6 +379,9 @@ export function WebcamCapture({
                   // ALL POSES COMPLETED AUTOMATICALLY!
                   setScanFinished(true)
                   if (audioEnabled) playBiometricChime('complete')
+                  if (onComplete) {
+                    onComplete([...capturedPhotosRef.current])
+                  }
                 } else {
                   stepIdxRef.current = nextStepIdx
                   setCurrentStepIdx(nextStepIdx)

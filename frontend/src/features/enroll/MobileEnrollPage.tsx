@@ -1,84 +1,22 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Camera,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
   Trash2,
   ShieldCheck,
   ArrowRight,
-  Scan,
   Sparkles,
-  Info,
 } from 'lucide-react'
 import { getEnrollmentSession, uploadSessionPhotos } from '@/api/sessions'
+import { WebcamCapture } from '@/components/common/WebcamCapture'
 import {
   MAX_ENROLLMENT_PHOTOS,
   MIN_ENROLLMENT_PHOTOS,
   ACCEPTED_IMAGE_TYPES,
   MAX_UPLOAD_BYTES,
 } from '@/lib/constants'
-
-interface MobileStep {
-  id: string
-  title: string
-  instruction: string
-  subtext: string
-  emoji: string
-  targetCount: number
-}
-
-const MOBILE_BANKING_STEPS: MobileStep[] = [
-  {
-    id: 'front',
-    title: 'Front Center',
-    instruction: 'Look straight at your front camera',
-    subtext: 'Neutral expression, keep your phone at eye level.',
-    emoji: '😐',
-    targetCount: 2,
-  },
-  {
-    id: 'turn_left',
-    title: 'Turn Left',
-    instruction: 'Slowly turn your head to your left',
-    subtext: 'Turn about 20° to capture your left cheekbone and jawline.',
-    emoji: '⬅️',
-    targetCount: 2,
-  },
-  {
-    id: 'turn_right',
-    title: 'Turn Right',
-    instruction: 'Now slowly turn your head to your right',
-    subtext: 'Turn about 20° to capture your right cheekbone and jawline.',
-    emoji: '➡️',
-    targetCount: 2,
-  },
-  {
-    id: 'tilt_up',
-    title: 'Tilt Chin Up',
-    instruction: 'Tilt your chin slightly upward',
-    subtext: 'Helps recognize you at lower-angle kiosk cameras.',
-    emoji: '⬆️',
-    targetCount: 1,
-  },
-  {
-    id: 'tilt_down',
-    title: 'Tilt Head Down',
-    instruction: 'Tilt your head slightly downward',
-    subtext: 'Helps recognize you from overhead entrance CCTV cameras.',
-    emoji: '⬇️',
-    targetCount: 1,
-  },
-  {
-    id: 'smile',
-    title: 'Natural Smile',
-    instruction: 'Look straight and give a gentle smile',
-    subtext: 'Captures expression variation and liveness.',
-    emoji: '😊',
-    targetCount: 2,
-  },
-]
 
 export function MobileEnrollPage() {
   const [params] = useSearchParams()
@@ -90,9 +28,8 @@ export function MobileEnrollPage() {
   const [previews, setPreviews] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const [activeStepIdx, setActiveStepIdx] = useState(0)
+  const [fallbackUploadMode, setFallbackUploadMode] = useState(false)
 
-  const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
 
   // Verify session on load
@@ -124,19 +61,6 @@ export function MobileEnrollPage() {
       urls.forEach((url) => URL.revokeObjectURL(url))
     }
   }, [selectedFiles])
-
-  // Automatically advance guided step based on captured photos
-  useEffect(() => {
-    let accumulated = 0
-    for (let i = 0; i < MOBILE_BANKING_STEPS.length; i++) {
-      accumulated += MOBILE_BANKING_STEPS[i].targetCount
-      if (selectedFiles.length < accumulated) {
-        setActiveStepIdx(i)
-        return
-      }
-    }
-    setActiveStepIdx(MOBILE_BANKING_STEPS.length - 1)
-  }, [selectedFiles.length])
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return
@@ -172,13 +96,13 @@ export function MobileEnrollPage() {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleSendToDesktop = async () => {
-    if (!sessionId || selectedFiles.length === 0) return
+  const handleSendToDesktop = async (filesToSend = selectedFiles) => {
+    if (!sessionId || filesToSend.length === 0) return
     setUploading(true)
     setError(null)
 
     try {
-      await uploadSessionPhotos(sessionId, selectedFiles)
+      await uploadSessionPhotos(sessionId, filesToSend)
       setIsSuccess(true)
     } catch (err) {
       console.error('Failed to send photos:', err)
@@ -192,10 +116,7 @@ export function MobileEnrollPage() {
     setSelectedFiles([])
     setIsSuccess(false)
     setError(null)
-    setActiveStepIdx(0)
   }
-
-  const currentStep = MOBILE_BANKING_STEPS[activeStepIdx]
 
   if (loading) {
     return (
@@ -216,7 +137,7 @@ export function MobileEnrollPage() {
           </div>
           <div>
             <h1 className="font-semibold text-xs tracking-wide text-white flex items-center gap-1.5">
-              Bantay Biometric Enrollment
+              Bantay Hands-Free Biometric Scan
             </h1>
             <p className="text-[10px] text-slate-400 flex items-center gap-1">
               <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -251,18 +172,18 @@ export function MobileEnrollPage() {
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-white">Photos Transferred!</h2>
               <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
-                {selectedFiles.length} multi-angle biometric photos have been sent to your computer.
+                {selectedFiles.length} multi-angle biometric photos have been sent to your computer screen.
               </p>
             </div>
 
             <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 text-left space-y-2">
               <div className="flex items-center gap-2 text-xs font-semibold text-amber-400">
-                <ShieldCheck className="size-4" /> Final Step on Computer Screen:
+                <ShieldCheck className="size-4" /> Next Step on Computer Screen:
               </div>
               <ul className="text-[11px] text-slate-300 space-y-1.5 list-disc pl-4">
                 <li>Look at your computer screen to review the photo previews.</li>
                 <li>Click <strong>Enroll Photos</strong> on the computer to finish registration.</li>
-                <li>Photos are automatically turned into embeddings and removed from temporary storage.</li>
+                <li>Photos are automatically converted to embeddings and deleted from memory.</li>
               </ul>
             </div>
 
@@ -277,113 +198,72 @@ export function MobileEnrollPage() {
             </div>
           </div>
         ) : (
-          /* Banking-Style Multi-Angle Guided Flow */
-          <>
-            {/* Banking Pose Banner Card */}
-            <div className="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
-                  <Scan className="size-4 text-amber-400" /> Banking Biometric Guide
-                </span>
-                <span className="text-[11px] font-medium bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                  Step {activeStepIdx + 1} of {MOBILE_BANKING_STEPS.length}
-                </span>
-              </div>
+          /* Hands-Free Automated Live Camera View on Mobile */
+          <div className="space-y-4">
+            {!fallbackUploadMode ? (
+              <div className="space-y-3">
+                {/* Live Hands-Free Biometric Scanner */}
+                <WebcamCapture
+                  files={selectedFiles}
+                  onCapture={(file) => setSelectedFiles((prev) => [...prev, file])}
+                  onComplete={async (allPhotos) => {
+                    // Once 10 photos are auto-snapped, automatically send to computer!
+                    await handleSendToDesktop(allPhotos)
+                  }}
+                  max={MAX_ENROLLMENT_PHOTOS}
+                  disabled={uploading}
+                  onSwitchToUpload={() => setFallbackUploadMode(true)}
+                />
 
-              {/* Central Biometric Oval Prompt Display */}
-              <div className="relative py-4 flex flex-col items-center justify-center text-center space-y-2">
-                <div className="relative size-28 rounded-[45%] border-2 border-dashed border-amber-400/80 flex items-center justify-center bg-slate-950/60 shadow-inner">
-                  <span className="text-4xl animate-pulse">{currentStep.emoji}</span>
-                  <div className="absolute -bottom-1 text-[9px] bg-amber-500 text-slate-950 font-bold px-2 py-0.5 rounded-full">
-                    {currentStep.title}
-                  </div>
-                </div>
-
-                <div className="space-y-0.5 pt-1">
-                  <h3 className="text-sm font-bold text-white tracking-wide">
-                    {currentStep.instruction}
-                  </h3>
-                  <p className="text-[11px] text-slate-400 max-w-xs mx-auto leading-normal">
-                    {currentStep.subtext}
-                  </p>
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setFallbackUploadMode(true)}
+                    className="text-[11px] text-slate-400 hover:text-amber-400 underline"
+                  >
+                    Having camera issues? Select from photo library instead
+                  </button>
                 </div>
               </div>
+            ) : (
+              /* Fallback Manual Library Mode */
+              <div className="space-y-4 bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-200">
+                  <span>Photo Library Upload</span>
+                  <button
+                    type="button"
+                    onClick={() => setFallbackUploadMode(false)}
+                    className="text-[11px] text-amber-400 underline"
+                  >
+                    Switch back to Live Camera
+                  </button>
+                </div>
 
-              {/* Pose Steps Indicators */}
-              <div className="grid grid-cols-6 gap-1 pt-1 border-t border-slate-800">
-                {MOBILE_BANKING_STEPS.map((step, idx) => {
-                  const isCurrent = activeStepIdx === idx
-                  const isCompleted = activeStepIdx > idx
-                  return (
-                    <div
-                      key={step.id}
-                      className={`text-center py-1 rounded-lg text-[10px] transition ${
-                        isCurrent
-                          ? 'bg-amber-400/20 text-amber-300 font-bold border border-amber-400/60'
-                          : isCompleted
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                            : 'bg-slate-950/40 text-slate-500'
-                      }`}
-                    >
-                      <div>{step.emoji}</div>
-                      <div className="text-[9px] truncate">{step.title.split(' ')[0]}</div>
-                    </div>
-                  )
-                })}
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    handleFiles(e.target.files)
+                    e.target.value = ''
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="w-full py-3.5 rounded-xl border-2 border-dashed border-slate-700 hover:border-amber-400 text-xs font-semibold text-slate-300 transition"
+                >
+                  Choose photos from photo library ({selectedFiles.length}/{MAX_ENROLLMENT_PHOTOS})
+                </button>
               </div>
-            </div>
+            )}
 
-            {/* Hidden Inputs */}
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="user"
-              className="hidden"
-              onChange={(e) => {
-                handleFiles(e.target.files)
-                e.target.value = ''
-              }}
-            />
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                handleFiles(e.target.files)
-                e.target.value = ''
-              }}
-            />
-
-            {/* Dynamic Step Action Button */}
-            <div className="grid grid-cols-1 gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => cameraInputRef.current?.click()}
-                disabled={selectedFiles.length >= MAX_ENROLLMENT_PHOTOS || uploading}
-                className="w-full flex items-center justify-center gap-2.5 py-4 px-4 rounded-2xl font-bold text-xs tracking-wide bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 active:scale-[0.98] text-slate-950 shadow-lg shadow-amber-500/25 disabled:opacity-50 disabled:pointer-events-none transition"
-              >
-                <Camera className="size-4 stroke-[2.5]" />
-                <span>
-                  Capture {currentStep.emoji} {currentStep.title} ({selectedFiles.length}/{MAX_ENROLLMENT_PHOTOS})
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => galleryInputRef.current?.click()}
-                disabled={selectedFiles.length >= MAX_ENROLLMENT_PHOTOS || uploading}
-                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-[11px] font-medium bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/80 transition"
-              >
-                <span>Select multiple photos from camera roll</span>
-              </button>
-            </div>
-
-            {/* Captured Photos Gallery */}
-            {selectedFiles.length > 0 ? (
-              <div className="space-y-2 pt-1">
+            {/* Photo Previews */}
+            {selectedFiles.length > 0 && (
+              <div className="space-y-2 pt-2">
                 <div className="flex items-center justify-between text-[11px] text-slate-400">
                   <span className="font-medium text-slate-200">
                     Captured Angles ({selectedFiles.length}/{MAX_ENROLLMENT_PHOTOS})
@@ -397,7 +277,7 @@ export function MobileEnrollPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {previews.map((url, i) => (
                     <div
                       key={url}
@@ -417,52 +297,33 @@ export function MobileEnrollPage() {
                       </button>
                     </div>
                   ))}
+                </div>
 
-                  {/* Add More Slot */}
-                  {selectedFiles.length < MAX_ENROLLMENT_PHOTOS && (
-                    <button
-                      type="button"
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="aspect-square rounded-xl border border-dashed border-slate-700 hover:border-amber-400/60 bg-slate-900/40 flex flex-col items-center justify-center text-slate-400 hover:text-amber-400 transition"
-                    >
-                      <Camera className="size-5 mb-1" />
-                      <span className="text-[10px] font-medium">+ Next Angle</span>
-                    </button>
-                  )}
+                {/* Send Button */}
+                <div className="pt-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSendToDesktop()}
+                    disabled={selectedFiles.length < MIN_ENROLLMENT_PHOTOS || uploading}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-bold text-xs tracking-wide bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] text-white shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:pointer-events-none transition"
+                  >
+                    {uploading ? (
+                      <>
+                        <RefreshCw className="size-4 animate-spin" />
+                        <span>Transmitting to computer...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="size-4" />
+                        <span>Send {selectedFiles.length} Photos to Computer</span>
+                        <ArrowRight className="size-4" />
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-            ) : (
-              <div className="py-6 border border-dashed border-slate-800 rounded-2xl flex items-center gap-3 p-3 text-slate-400 bg-slate-900/30">
-                <Info className="size-5 shrink-0 text-amber-400" />
-                <p className="text-[11px] text-slate-400">
-                  Follow each angle prompt above to capture multi-angle photos for high recognition accuracy.
-                </p>
-              </div>
             )}
-
-            {/* Bottom Final Action */}
-            <div className="pt-2 mt-auto">
-              <button
-                type="button"
-                onClick={handleSendToDesktop}
-                disabled={selectedFiles.length < MIN_ENROLLMENT_PHOTOS || uploading}
-                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-bold text-xs tracking-wide bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] text-white shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:pointer-events-none transition"
-              >
-                {uploading ? (
-                  <>
-                    <RefreshCw className="size-4 animate-spin" />
-                    <span>Transmitting to computer...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="size-4" />
-                    <span>Send {selectedFiles.length} Photos to Computer</span>
-                    <ArrowRight className="size-4" />
-                  </>
-                )}
-              </button>
-            </div>
-          </>
+          </div>
         )}
       </main>
     </div>
