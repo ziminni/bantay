@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..db import get_db
 from ..models import Camera, CameraStatus, Lab
-from ..schemas import CameraCreate, CameraRead, CameraTestResult, CameraUpdate
+from ..schemas import CameraCreate, CameraRead, CameraTestResult, CameraUpdate, CameraZone
 from ..services.camera_worker import _placeholder_jpeg, manager, probe_camera
 
 router = APIRouter(prefix="/cameras", tags=["Cameras & Live View"])
@@ -34,6 +34,7 @@ def _to_read(camera: Camera, lab_name: str | None = None) -> CameraRead:
         status=camera.status,
         last_seen_at=camera.last_seen_at,
         last_error=camera.last_error,
+        zones=camera.zones or [],
         created_at=camera.created_at,
         stream_url=f"{settings.api_prefix}/cameras/{camera.id}/stream.mjpeg",
     )
@@ -135,6 +136,26 @@ def update_camera(
 
     db.refresh(camera)
     manager.restart(camera.id)
+    lab = db.get(Lab, camera.lab_id)
+    return _to_read(camera, lab.name if lab else None)
+
+
+@router.put(
+    "/{camera_id}/zones",
+    response_model=CameraRead,
+    summary="Update zones for a camera",
+)
+def update_camera_zones(
+    camera_id: int,
+    zones: list[CameraZone],
+    db: Session = Depends(get_db),
+) -> CameraRead:
+    camera = db.get(Camera, camera_id)
+    if camera is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Camera not found.")
+    camera.zones = [z.model_dump() for z in zones]
+    db.commit()
+    db.refresh(camera)
     lab = db.get(Lab, camera.lab_id)
     return _to_read(camera, lab.name if lab else None)
 

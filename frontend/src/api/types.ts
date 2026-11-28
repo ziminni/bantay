@@ -120,6 +120,17 @@ export interface LabUpdate extends Partial<LabCreate> {
 }
 
 // ---------------------------------------------------------------- cameras
+export type ZoneKind = 'door' | 'workstation' | 'restricted'
+
+export interface CameraZone {
+  name: string
+  kind: ZoneKind
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 export interface CameraRead {
   id: number
   lab_id: number
@@ -132,6 +143,7 @@ export interface CameraRead {
   status: CameraStatus
   last_seen_at: DateTimeString | null
   last_error: string | null
+  zones?: CameraZone[]
   created_at: DateTimeString
   /** Relative path of the MJPEG live view, e.g. /api/v1/cameras/1/stream.mjpeg */
   stream_url: string | null
@@ -143,6 +155,7 @@ export interface CameraCreate {
   role?: CameraRole
   rtsp_url: string
   enabled?: boolean
+  zones?: CameraZone[]
 }
 
 export interface CameraUpdate {
@@ -151,6 +164,7 @@ export interface CameraUpdate {
   rtsp_url?: string
   enabled?: boolean
   lab_id?: number
+  zones?: CameraZone[]
 }
 
 export interface CameraListParams {
@@ -341,6 +355,7 @@ export interface FlagRead {
   clip_path: string | null
   /** Seconds into the 6-second clip at which the rule fired. */
   trigger_offset: number
+  zones?: CameraZone[]
   persons_inside: FlagPersonRead[]
   reviewed_by: string | null
   reviewed_at: DateTimeString | null

@@ -3,7 +3,7 @@
  */
 import { API_BASE_URL } from '@/config'
 import { client, cleanParams } from './client'
-import type { CameraCreate, CameraListParams, CameraRead, CameraTestResult, CameraUpdate } from './types'
+import type { CameraCreate, CameraListParams, CameraRead, CameraTestResult, CameraUpdate, CameraZone } from './types'
 
 /** GET /cameras?lab_id=&enabled= */
 export async function listCameras(params: CameraListParams = {}): Promise<CameraRead[]> {
@@ -53,4 +53,10 @@ export async function restartCamera(id: number): Promise<CameraRead> {
 /** URL of the MJPEG live view, usable directly as <img src>. */
 export function streamUrl(id: number): string {
   return `${API_BASE_URL}/cameras/${id}/stream.mjpeg`
+}
+
+/** PUT /cameras/{id}/zones — save the sketched detection zones for this camera. */
+export async function updateCameraZones(id: number, zones: CameraZone[]): Promise<CameraRead> {
+  const { data } = await client.put<CameraRead>(`/cameras/${id}/zones`, zones)
+  return data
 }

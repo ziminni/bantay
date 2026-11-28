@@ -99,6 +99,7 @@ def _build_flag_read(db: Session, flag: BehaviorFlag) -> FlagRead:
         snapshot_path=snapshot_path,
         clip_path=flag.clip_path,
         trigger_offset=flag.trigger_offset,
+        zones=flag.camera.zones if flag.camera and flag.camera.zones else [],
         persons_inside=persons_inside,
         reviewed_by=flag.reviewed_by,
         reviewed_at=flag.reviewed_at,

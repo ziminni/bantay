@@ -1,4 +1,4 @@
-import { AlertCircle, DoorOpen, Monitor, Pencil, Plug, Plus, RotateCw } from 'lucide-react'
+import { AlertCircle, DoorOpen, Monitor, Pencil, Plug, Plus, RotateCw, Shapes } from 'lucide-react'
 import { useState } from 'react'
 import { restartCamera, testCamera } from '@/api/cameras'
 import { errorMessage } from '@/api/errors'
@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useToast } from '@/components/ui/useToast'
 import { CAMERA_ROLE_SHORT } from '@/lib/constants'
 import { formatRelative } from '@/lib/format'
+import { ZoneSketcherModal } from './ZoneSketcherModal'
 
 interface CameraListProps {
   cameras: CameraRead[]
@@ -46,6 +47,7 @@ export function CameraList({ cameras, onEdit, onAdd, onChanged }: CameraListProp
 function CameraRow({ camera, onEdit, onChanged }: { camera: CameraRead; onEdit: () => void; onChanged: () => void }) {
   const [testing, setTesting] = useState(false)
   const [restarting, setRestarting] = useState(false)
+  const [sketching, setSketching] = useState(false)
   const [result, setResult] = useState<CameraTestResult | null>(null)
   const toast = useToast()
 
@@ -107,11 +109,21 @@ function CameraRow({ camera, onEdit, onChanged }: { camera: CameraRead; onEdit: 
           <Button size="sm" onClick={test} loading={testing} disabled={!camera.enabled} icon={<Plug />}>
             Test connection
           </Button>
+          <Button size="sm" onClick={() => setSketching(true)} icon={<Shapes />}>
+            Sketch Zones{camera.zones && camera.zones.length > 0 ? ` (${camera.zones.length})` : ''}
+          </Button>
           <Button size="sm" onClick={onEdit} icon={<Pencil />}>
             Edit
           </Button>
         </div>
       </div>
+
+      <ZoneSketcherModal
+        open={sketching}
+        camera={camera}
+        onClose={() => setSketching(false)}
+        onSaved={onChanged}
+      />
 
       {camera.last_error && camera.status === 'OFFLINE' && !result && (
         <p className="flex items-center gap-2 text-sm text-red-700 sm:pl-15">

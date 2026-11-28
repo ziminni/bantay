@@ -195,6 +195,18 @@ class LabRead(ORMModel):
 # --------------------------------------------------------------------------
 # Camera
 # --------------------------------------------------------------------------
+class CameraZone(BaseModel):
+    name: str = Field(min_length=1, max_length=50, examples=["Door", "Computer 1", "Instructor PC"])
+    kind: Literal["door", "workstation", "restricted"] = Field(
+        default="workstation",
+        description="Zone category: door, workstation (computer), or restricted (instructor PC / server).",
+    )
+    x: float = Field(ge=0, description="X offset")
+    y: float = Field(ge=0, description="Y offset")
+    w: float = Field(gt=0, description="Width")
+    h: float = Field(gt=0, description="Height")
+
+
 class CameraBase(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=80, examples=["Lab 1 Entrance"])]
     role: CameraRoleLiteral = Field(
@@ -210,6 +222,7 @@ class CameraBase(BaseModel):
         ),
     ]
     enabled: bool = True
+    zones: list[CameraZone] = Field(default_factory=list)
 
     @field_validator("rtsp_url", mode="before")
     @classmethod
@@ -234,6 +247,7 @@ class CameraUpdate(BaseModel):
     rtsp_url: Annotated[str | None, Field(min_length=1)] = None
     enabled: bool | None = None
     lab_id: int | None = None
+    zones: list[CameraZone] | None = None
 
     @field_validator("rtsp_url", mode="before")
     @classmethod
@@ -261,6 +275,7 @@ class CameraRead(ORMModel):
     status: CameraStatusLiteral
     last_seen_at: dt.datetime | None
     last_error: str | None
+    zones: list[CameraZone] = Field(default_factory=list)
     created_at: dt.datetime
     stream_url: str | None = Field(
         default=None, description="Relative path of the MJPEG live view for this camera."
@@ -457,6 +472,7 @@ class FlagRead(ORMModel):
     snapshot_path: str | None = None
     clip_path: str | None = None
     trigger_offset: float = 3.0
+    zones: list[CameraZone] = Field(default_factory=list)
     persons_inside: list[FlagPersonRead] = Field(default_factory=list)
     reviewed_by: str | None = None
     reviewed_at: dt.datetime | None = None

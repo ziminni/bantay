@@ -201,7 +201,7 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
 
   const shownT = mode === 'snapshot' ? flag.trigger_offset : t
   const firing = shownT >= flag.trigger_offset && shownT <= flag.trigger_offset + 1.6
-  const zones = ROOM_ZONES
+  const zones = flag.zones && flag.zones.length > 0 ? flag.zones : ROOM_ZONES
   const highlighted = flag.evidence.zone
 
   const play = () => {
