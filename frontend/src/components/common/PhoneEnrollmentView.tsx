@@ -1,18 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import {
-  Smartphone,
-  Copy,
-  Check,
-  RefreshCw,
-  Clock,
-  Wifi,
   AlertTriangle,
+  Check,
+  Clock,
+  Copy,
+  RefreshCw,
+  Smartphone,
+  Wifi,
 } from 'lucide-react'
 import {
   createEnrollmentSession,
-  getEnrollmentSession,
   deleteEnrollmentSession,
+  getEnrollmentSession,
   type SessionCreateResponse,
 } from '@/api/sessions'
 
@@ -27,17 +27,22 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mobileUrl, setMobileUrl] = useState<string>('')
+  const [qrDataUrl, setQrDataUrl] = useState<string>('')
   const [copied, setCopied] = useState(false)
   const [timeLeft, setTimeLeft] = useState<string>('')
   const [transferring, setTransferring] = useState(false)
   const [transferredCount, setTransferredCount] = useState<number | null>(null)
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const pollingRef = useRef<NodeJS.Timeout | null>(null)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const mountedRef = useRef(true)
+  const onPhotosReceivedRef = useRef(onPhotosReceived)
 
-  const stopTimers = () => {
+  useEffect(() => {
+    onPhotosReceivedRef.current = onPhotosReceived
+  }, [onPhotosReceived])
+
+  const stopTimers = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current)
       pollingRef.current = null
@@ -46,10 +51,10 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
       clearInterval(timerRef.current)
       timerRef.current = null
     }
-  }
+  }, [])
 
-  // Start or reset session
-  const initSession = async () => {
+  // Start or reset QR session
+  const initSession = useCallback(async () => {
     stopTimers()
     setLoading(true)
     setError(null)
@@ -61,27 +66,24 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
       if (!mountedRef.current) return
       setSession(data)
 
-      // Resolve host IP
       const currentHost = window.location.hostname
-      // If user is running desktop on localhost or 127.0.0.1, use the LAN IP so mobile can reach it
       const targetHost =
         currentHost === 'localhost' || currentHost === '127.0.0.1' ? data.network_ip : currentHost
       const port = window.location.port ? `:${window.location.port}` : ''
       const url = `${window.location.protocol}//${targetHost}${port}/enroll/mobile?session=${data.session_id}`
-      if (!mountedRef.current) return
       setMobileUrl(url)
 
-      // Render QR code
-      if (canvasRef.current) {
-        await QRCode.toCanvas(canvasRef.current, url, {
-          width: 220,
-          margin: 1,
-          color: {
-            dark: '#0f172a', // slate-900
-            light: '#ffffff',
-          },
-        })
-      }
+      // Generate a 1:1 square data URL image so unmounting/remounting never reverts to a 300x150 blank canvas rectangle
+      const dataUrl = await QRCode.toDataURL(url, {
+        width: 220,
+        margin: 1,
+        color: {
+          dark: '#0e2a47',
+          light: '#ffffff',
+        },
+      })
+      if (!mountedRef.current) return
+      setQrDataUrl(dataUrl)
 
       // Countdown timer
       const expiresAt = new Date(data.expires_at).getTime()
@@ -100,7 +102,7 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
       updateTimer()
       timerRef.current = setInterval(updateTimer, 1000)
 
-      // Start Polling loop
+      // Poll session status
       let consecutiveErrors = 0
       pollingRef.current = setInterval(async () => {
         if (!mountedRef.current) {
@@ -113,12 +115,10 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
           consecutiveErrors = 0
 
           if (status.status === 'received' && status.photos.length > 0) {
-            // Photos uploaded from phone!
             stopTimers()
             setTransferring(true)
             setTransferredCount(status.photos.length)
 
-            // Fetch each image blob and convert to File
             const files: File[] = []
             for (const p of status.photos) {
               const res = await fetch(p.url)
@@ -129,21 +129,20 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
               files.push(file)
             }
 
-            // Deliver to parent
-            if (mountedRef.current) {
-              onPhotosReceived(files)
-              setTransferring(false)
-            }
+            await deleteEnrollmentSession(data.session_id).catch(() => undefined)
 
-            // Cleanup session on backend
-            deleteEnrollmentSession(data.session_id).catch(() => undefined)
+            if (mountedRef.current) {
+              onPhotosReceivedRef.current(files)
+              setTransferring(false)
+              // Immediately prepare a fresh square QR session in case user scans again
+              void initSession()
+            }
           } else if (status.status === 'expired') {
             stopTimers()
             if (mountedRef.current) setTimeLeft('Expired')
           }
         } catch {
           consecutiveErrors++
-          // If session returned 404 or fails repeatedly, stop polling cleanly
           if (consecutiveErrors >= 2) {
             stopTimers()
             if (mountedRef.current) setTimeLeft('Expired')
@@ -157,30 +156,16 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
     } finally {
       if (mountedRef.current) setLoading(false)
     }
-  }
+  }, [stopTimers])
 
   useEffect(() => {
     mountedRef.current = true
-    initSession()
+    void initSession()
     return () => {
       mountedRef.current = false
       stopTimers()
     }
-  }, [])
-
-  // Re-draw QR canvas if session is ready and canvas ref attaches
-  useEffect(() => {
-    if (session && mobileUrl && canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, mobileUrl, {
-        width: 220,
-        margin: 1,
-        color: {
-          dark: '#0f172a',
-          light: '#ffffff',
-        },
-      }).catch((e) => console.error('QR draw error:', e))
-    }
-  }, [session, mobileUrl])
+  }, [initSession, stopTimers])
 
   const copyLink = async () => {
     if (!mobileUrl) return
@@ -246,7 +231,6 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
           </button>
         </div>
       ) : transferring ? (
-        /* Transferring in progress */
         <div className="my-8 flex flex-col items-center justify-center space-y-3 py-6 text-center">
           <div className="flex size-14 items-center justify-center rounded-2xl bg-marigold-100 text-marigold-600 shadow-inner">
             <RefreshCw className="size-7 animate-spin" />
@@ -259,25 +243,35 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
       ) : (
         /* QR Code & Step Instructions */
         <div className="mt-5 grid grid-cols-1 items-center gap-6 md:grid-cols-12">
-          {/* QR Code Container */}
+          {/* Square QR Code Frame — Strictly 1:1 matching the QR code */}
           <div className="flex flex-col items-center justify-center md:col-span-5">
-            <div className="relative rounded-2xl border-2 border-gray-200 bg-slate-50 p-3 shadow-sm">
-              {/* Corner Viewfinder Accents */}
-              <div className="pointer-events-none absolute -top-1 -left-1 size-4 rounded-tl border-t-2 border-l-2 border-marigold-500" />
-              <div className="pointer-events-none absolute -top-1 -right-1 size-4 rounded-tr border-t-2 border-r-2 border-marigold-500" />
-              <div className="pointer-events-none absolute -bottom-1 -left-1 size-4 rounded-bl border-b-2 border-l-2 border-marigold-500" />
-              <div className="pointer-events-none absolute -bottom-1 -right-1 size-4 rounded-br border-b-2 border-r-2 border-marigold-500" />
+            <div className="relative flex size-[244px] aspect-square shrink-0 items-center justify-center rounded-2xl border-2 border-gray-200 bg-white p-3 shadow-sm">
+              {/* Aligned Corner Viewfinder Accents matching the rounded-2xl QR frame */}
+              <div className="pointer-events-none absolute -top-0.5 -left-0.5 size-5 rounded-tl-2xl border-t-2 border-l-2 border-marigold-500" />
+              <div className="pointer-events-none absolute -top-0.5 -right-0.5 size-5 rounded-tr-2xl border-t-2 border-r-2 border-marigold-500" />
+              <div className="pointer-events-none absolute -bottom-0.5 -left-0.5 size-5 rounded-bl-2xl border-b-2 border-l-2 border-marigold-500" />
+              <div className="pointer-events-none absolute -bottom-0.5 -right-0.5 size-5 rounded-br-2xl border-b-2 border-r-2 border-marigold-500" />
 
-              <canvas ref={canvasRef} className="rounded-xl shadow-xs" />
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt="Mobile face enrollment QR code"
+                  width={220}
+                  height={220}
+                  className="size-[220px] aspect-square rounded-xl object-contain block select-none"
+                />
+              ) : (
+                <div className="size-[220px] aspect-square rounded-xl bg-gray-50" />
+              )}
 
               {loading && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/80 backdrop-blur-xs">
+                <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/80 backdrop-blur-xs">
                   <RefreshCw className="size-6 animate-spin text-marigold-500" />
                 </div>
               )}
 
               {timeLeft === 'Expired' && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white/95 p-4 text-center">
+                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-white/95 p-4 text-center">
                   <p className="text-xs font-semibold text-red-600">QR Code Expired</p>
                   <p className="mt-1 text-[11px] text-gray-500">For security, QR codes expire after 15 minutes.</p>
                   <button
@@ -343,9 +337,9 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
                   2
                 </div>
                 <div className="text-xs">
-                  <p className="font-semibold text-gray-900">Follow banking head poses</p>
+                  <p className="font-semibold text-gray-900">Follow guided head poses</p>
                   <p className="text-gray-500">
-                    Your phone will guide you through natural head movements (front, left, right, up, down, smile) to capture multiple angles.
+                    Confirm when ready and move your head naturally (front, left, right, up, down) as instructed.
                   </p>
                 </div>
               </div>
@@ -355,9 +349,9 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
                   3
                 </div>
                 <div className="text-xs">
-                  <p className="font-semibold text-gray-900">Instant transfer to desktop</p>
+                  <p className="font-semibold text-gray-900">Automatic transfer to desktop</p>
                   <p className="text-gray-500">
-                    Tap <strong className="text-gray-800">Send to Computer</strong>. Photos will automatically sync here in real time.
+                    Once complete, your face scan automatically syncs here in real time.
                   </p>
                 </div>
               </div>
@@ -365,8 +359,8 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
 
             {/* Network Reminder */}
             {session && (
-              <div className="flex items-center gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3 text-[11px] text-amber-900">
-                <Wifi className="size-4 shrink-0 text-amber-600" />
+              <div className="flex items-center gap-2 rounded-xl border border-marigold-200/80 bg-marigold-50/70 p-3 text-[11px] text-navy-900">
+                <Wifi className="size-4 shrink-0 text-marigold-600" />
                 <span>
                   Make sure your phone is connected to the same local Wi-Fi network (<strong>{session.network_ip}</strong>).
                 </span>
