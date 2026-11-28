@@ -8,17 +8,17 @@ export function PhotoTips() {
           <li>One person per photo, face clearly inside the oval.</li>
           <li>Good, even lighting — no strong shadow or backlight.</li>
           <li>No mask, cap or sunglasses.</li>
-          <li>Center facing first, then turn slightly left and right (~15°).</li>
+          <li>Center facing first, then follow the prompts left, right, up and down.</li>
         </ul>
       </div>
 
       <div className="border-t border-white/10 pt-4">
         <p className="flex items-center gap-1.5 font-medium text-cream">
           <span className="size-2 rounded-full bg-marigold-400" />
-          <span>Banking-Style Biometric Scan</span>
+          <span>Screen Flash Liveness</span>
         </p>
         <p className="mt-1 text-xs leading-relaxed text-navy-200">
-          The automated scanner guides head movement (front, left, right, up, down, smile) to collect 10 multi-angle embeddings, maximizing CCTV recognition accuracy from different heights and perspectives.
+          The camera flashes colors during capture to verify natural skin reflection, matching banking-grade KYC anti-spoofing standards.
         </p>
       </div>
     </div>

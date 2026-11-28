@@ -7,10 +7,10 @@ import {
   Trash2,
   ShieldCheck,
   ArrowRight,
-  Sparkles,
 } from 'lucide-react'
 import { getEnrollmentSession, uploadSessionPhotos } from '@/api/sessions'
 import { WebcamCapture } from '@/components/common/WebcamCapture'
+import { Button } from '@/components/ui/Button'
 import {
   MAX_ENROLLMENT_PHOTOS,
   MIN_ENROLLMENT_PHOTOS,
@@ -33,7 +33,6 @@ export function MobileEnrollPage() {
   const galleryInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
-  // Verify session on load
   useEffect(() => {
     if (!sessionId) {
       setError('No session ID found. Please scan the QR code displayed on the Bantay desktop screen.')
@@ -47,14 +46,12 @@ export function MobileEnrollPage() {
           setError('This enrollment session has expired. Please refresh the QR code on your computer.')
         }
       })
-      .catch((err) => {
-        console.error('Session fetch failed:', err)
+      .catch(() => {
         setError('Invalid or expired session. Please re-scan the QR code from the Bantay screen.')
       })
       .finally(() => setLoading(false))
   }, [sessionId])
 
-  // Sync object URLs for previews
   useEffect(() => {
     const urls = selectedFiles.map((file) => URL.createObjectURL(file))
     setPreviews(urls)
@@ -76,7 +73,7 @@ export function MobileEnrollPage() {
       } else if (f.size > MAX_UPLOAD_BYTES) {
         problems.push(`${f.name} is too large (max 10MB).`)
       } else if (selectedFiles.some((x) => x.name === f.name && x.size === f.size)) {
-        problems.push(`Photo already added.`)
+        problems.push('Photo already added.')
       } else if (selectedFiles.length + valid.length >= MAX_ENROLLMENT_PHOTOS) {
         problems.push(`Maximum ${MAX_ENROLLMENT_PHOTOS} photos reached.`)
       } else {
@@ -105,8 +102,7 @@ export function MobileEnrollPage() {
     try {
       await uploadSessionPhotos(sessionId, filesToSend)
       setIsSuccess(true)
-    } catch (err) {
-      console.error('Failed to send photos:', err)
+    } catch {
       setError('Failed to transfer photos. Please ensure your phone is connected to the same Wi-Fi.')
     } finally {
       setUploading(false)
@@ -121,94 +117,80 @@ export function MobileEnrollPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6">
-        <RefreshCw className="size-8 text-amber-400 animate-spin mb-4" />
-        <p className="text-slate-300 font-medium">Connecting to Bantay biometric session...</p>
+      <div className="min-h-screen bg-cream text-navy-900 flex flex-col items-center justify-center p-6">
+        <RefreshCw className="size-7 text-marigold-500 animate-spin mb-3" />
+        <p className="text-sm font-medium text-gray-600">Connecting to Bantay enrollment session...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100 flex flex-col">
-      {/* Mobile Top Header */}
-      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-20 px-4 py-3 flex items-center justify-between">
+    <div className="min-h-screen bg-cream text-navy-900 flex flex-col">
+      {/* Header matching Bantay Navy + Marigold theme */}
+      <header className="border-b border-navy-800 bg-navy-900 text-cream sticky top-0 z-20 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="size-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 font-bold text-slate-950 text-sm">
+          <div className="size-8 rounded-lg bg-marigold-400 flex items-center justify-center font-display font-bold text-navy-950 text-sm">
             B
           </div>
           <div>
-            <h1 className="font-semibold text-xs tracking-wide text-white flex items-center gap-1.5">
-              Bantay Hands-Free Biometric Scan
-            </h1>
-            <p className="text-[10px] text-slate-400 flex items-center gap-1">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <h1 className="font-display font-semibold text-sm text-cream">Bantay Face Enrollment</h1>
+            <p className="text-[11px] text-navy-200 flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-emerald-400" />
               Connected to Lab Computer
             </p>
           </div>
         </div>
 
         {sessionId && (
-          <span className="text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700 rounded px-2 py-0.5">
+          <span className="text-[11px] font-mono bg-navy-800 text-navy-200 border border-white/10 rounded px-2 py-0.5">
             #{sessionId.slice(0, 6)}
           </span>
         )}
       </header>
 
-      {/* Main Body */}
-      <main className="flex-1 max-w-md w-full mx-auto p-4 flex flex-col space-y-4">
+      <main className="flex-1 max-w-lg w-full mx-auto p-4 flex flex-col space-y-4">
         {error && (
-          <div className="p-3.5 rounded-xl bg-red-950/60 border border-red-800/80 text-red-200 text-xs flex items-start gap-2.5">
-            <AlertCircle className="size-4 text-red-400 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+            <AlertCircle className="size-4 text-red-500 shrink-0 mt-0.5" />
             <div className="flex-1">{error}</div>
           </div>
         )}
 
         {isSuccess ? (
-          /* Success Screen */
-          <div className="my-auto text-center space-y-5 py-8">
-            <div className="size-20 bg-emerald-500/20 border border-emerald-500/40 rounded-full flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/10 animate-bounce">
-              <CheckCircle2 className="size-10" />
+          <div className="my-auto rounded-2xl border border-gray-200 bg-white p-6 text-center space-y-5 shadow-card">
+            <div className="size-16 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+              <CheckCircle2 className="size-8" />
             </div>
 
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-white">Photos Transferred!</h2>
-              <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
-                {selectedFiles.length} multi-angle biometric photos have been sent to your computer screen.
+            <div className="space-y-1.5">
+              <h2 className="font-display text-lg font-semibold text-navy-900">Photos Sent to Computer</h2>
+              <p className="text-xs text-gray-600 max-w-xs mx-auto leading-relaxed">
+                {selectedFiles.length} face photos have been transferred to your enrollment page.
               </p>
             </div>
 
-            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 text-left space-y-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-amber-400">
-                <ShieldCheck className="size-4" /> Next Step on Computer Screen:
+            <div className="rounded-xl border border-marigold-200 bg-marigold-50 p-4 text-left space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-navy-900">
+                <ShieldCheck className="size-4 text-marigold-600" /> Next step on computer:
               </div>
-              <ul className="text-[11px] text-slate-300 space-y-1.5 list-disc pl-4">
-                <li>Look at your computer screen to review the photo previews.</li>
-                <li>Click <strong>Enroll Photos</strong> on the computer to finish registration.</li>
-                <li>Photos are automatically converted to embeddings and deleted from memory.</li>
+              <ul className="text-xs text-gray-700 space-y-1 list-disc pl-4">
+                <li>Review the transferred photos on your computer screen.</li>
+                <li>Click <strong>Enroll photos</strong> to save the face embeddings.</li>
               </ul>
             </div>
 
-            <div className="pt-4 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleReset}
-                className="w-full py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium transition"
-              >
-                Scan Again / Take New Photos
-              </button>
-            </div>
+            <Button onClick={handleReset} className="w-full justify-center">
+              Scan Again
+            </Button>
           </div>
         ) : (
-          /* Hands-Free Automated Live Camera View on Mobile */
           <div className="space-y-4">
             {!fallbackUploadMode ? (
-              <div className="space-y-3">
-                {/* Live Hands-Free Biometric Scanner */}
+              <div className="space-y-2">
                 <WebcamCapture
                   files={selectedFiles}
                   onCapture={(file) => setSelectedFiles((prev) => [...prev, file])}
                   onComplete={async (allPhotos) => {
-                    // Once 10 photos are auto-snapped, automatically send to computer!
                     await handleSendToDesktop(allPhotos)
                   }}
                   max={MAX_ENROLLMENT_PHOTOS}
@@ -216,27 +198,26 @@ export function MobileEnrollPage() {
                   onSwitchToUpload={() => setFallbackUploadMode(true)}
                 />
 
-                <div className="text-center pt-1">
+                <div className="text-center">
                   <button
                     type="button"
                     onClick={() => setFallbackUploadMode(true)}
-                    className="text-[11px] text-slate-400 hover:text-amber-400 underline"
+                    className="text-xs text-navy-700 hover:text-navy-900 underline"
                   >
-                    Having camera issues? Select from photo library instead
+                    Having camera issues? Use native camera or photo library instead
                   </button>
                 </div>
               </div>
             ) : (
-              /* Fallback Manual Library Mode */
-              <div className="space-y-4 bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-200">
-                  <span>Native Mobile Camera</span>
+              <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-card">
+                <div className="flex items-center justify-between text-xs font-semibold text-navy-900">
+                  <span>Phone Camera / Photo Library</span>
                   <button
                     type="button"
                     onClick={() => setFallbackUploadMode(false)}
-                    className="text-[11px] text-amber-400 underline"
+                    className="text-xs text-navy-700 underline"
                   >
-                    Try Live Hands-Free Camera
+                    Back to Live Guided Scanner
                   </button>
                 </div>
 
@@ -263,38 +244,26 @@ export function MobileEnrollPage() {
                   }}
                 />
 
-                <button
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="w-full py-3.5 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-md flex items-center justify-center gap-2 transition"
-                >
-                  <span>📸 Take Front Selfie</span>
-                  <span className="text-[10px] text-slate-800">({selectedFiles.length}/{MAX_ENROLLMENT_PHOTOS})</span>
-                </button>
+                <Button variant="primary" onClick={() => cameraInputRef.current?.click()} className="w-full justify-center">
+                  Take Front Selfie ({selectedFiles.length}/{MAX_ENROLLMENT_PHOTOS})
+                </Button>
 
-                <button
-                  type="button"
-                  onClick={() => galleryInputRef.current?.click()}
-                  className="w-full py-2.5 rounded-xl border border-dashed border-slate-700 hover:border-amber-400 text-xs font-medium text-slate-300 transition"
-                >
-                  Or pick from photo library
-                </button>
+                <Button onClick={() => galleryInputRef.current?.click()} className="w-full justify-center">
+                  Choose from Photo Library
+                </Button>
               </div>
             )}
 
-            {/* Photo Previews */}
             {selectedFiles.length > 0 && (
-              <div className="space-y-2 pt-2">
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span className="font-medium text-slate-200">
-                    Captured Angles ({selectedFiles.length}/{MAX_ENROLLMENT_PHOTOS})
+              <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-card">
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span className="font-medium text-navy-900">
+                    Captured photos ({selectedFiles.length} of {MAX_ENROLLMENT_PHOTOS})
                   </span>
                   <span>
-                    {selectedFiles.length >= MIN_ENROLLMENT_PHOTOS ? (
-                      <span className="text-emerald-400 font-medium">✓ Ready to send</span>
-                    ) : (
-                      <span>Need {MIN_ENROLLMENT_PHOTOS - selectedFiles.length} more</span>
-                    )}
+                    {selectedFiles.length >= MIN_ENROLLMENT_PHOTOS
+                      ? '✓ Ready to send'
+                      : `Need ${MIN_ENROLLMENT_PHOTOS - selectedFiles.length} more`}
                   </span>
                 </div>
 
@@ -302,16 +271,16 @@ export function MobileEnrollPage() {
                   {previews.map((url, i) => (
                     <div
                       key={url}
-                      className="group relative aspect-square rounded-xl overflow-hidden border border-slate-700 bg-slate-800 shadow-md"
+                      className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
                     >
-                      <img src={url} alt={`Angle ${i + 1}`} className="size-full object-cover" />
-                      <span className="absolute bottom-1 left-1 bg-black/70 backdrop-blur-xs text-[9px] font-bold text-white px-1.5 py-0.2 rounded">
+                      <img src={url} alt={`Photo ${i + 1}`} className="size-full object-cover" />
+                      <span className="absolute bottom-1 left-1 rounded bg-navy-950/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
                         #{i + 1}
                       </span>
                       <button
                         type="button"
                         onClick={() => removePhoto(i)}
-                        className="absolute top-1 right-1 p-1 rounded-full bg-red-600/90 text-white shadow-sm hover:bg-red-700 transition"
+                        className="absolute top-1 right-1 p-1 rounded-full bg-red-600 text-white hover:bg-red-700"
                         aria-label="Remove photo"
                       >
                         <Trash2 className="size-3" />
@@ -320,28 +289,16 @@ export function MobileEnrollPage() {
                   ))}
                 </div>
 
-                {/* Send Button */}
-                <div className="pt-3">
-                  <button
-                    type="button"
-                    onClick={() => handleSendToDesktop()}
-                    disabled={selectedFiles.length < MIN_ENROLLMENT_PHOTOS || uploading}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-bold text-xs tracking-wide bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] text-white shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:pointer-events-none transition"
-                  >
-                    {uploading ? (
-                      <>
-                        <RefreshCw className="size-4 animate-spin" />
-                        <span>Transmitting to computer...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="size-4" />
-                        <span>Send {selectedFiles.length} Photos to Computer</span>
-                        <ArrowRight className="size-4" />
-                      </>
-                    )}
-                  </button>
-                </div>
+                <Button
+                  variant="primary"
+                  onClick={() => handleSendToDesktop()}
+                  disabled={selectedFiles.length < MIN_ENROLLMENT_PHOTOS}
+                  loading={uploading}
+                  icon={<ArrowRight />}
+                  className="w-full justify-center"
+                >
+                  Send {selectedFiles.length} Photos to Computer
+                </Button>
               </div>
             )}
           </div>

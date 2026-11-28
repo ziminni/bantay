@@ -1,24 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CheckCircle2, Play, RefreshCw, Volume2, VolumeX } from 'lucide-react'
 import { detectHeadPose } from '@/api/recognition'
 import { Button } from '@/components/ui/Button'
 import { BIOMETRIC_STEPS, TOTAL_BIOMETRIC_TARGET } from '@/lib/biometrics'
 import { cn } from '@/lib/cn'
 
-// Natural head-turn thresholds (degrees & keypoint ratios) so poses feel effortless
+// Rapid chromatic flash sequence (GoTyme / MariBank active liveness)
+const FLASH_COLORS = [
+  { name: 'Cyan', hex: '#06b6d4' },
+  { name: 'Magenta', hex: '#ec4899' },
+  { name: 'Amber', hex: '#f59e0b' },
+  { name: 'Emerald', hex: '#10b981' },
+  { name: 'White', hex: '#ffffff' },
+]
+
+// Natural head-turn thresholds (degrees & keypoint ratios)
 const YAW_THRESHOLD_DEG = 9.5
 const PITCH_THRESHOLD_DEG = 6.0
 const NOSE_X_THRESHOLD = 0.095
 const NOSE_Y_THRESHOLD = 0.05
 const REQUIRED_HOLD_MS = 350
-const STEP_TRANSITION_MS = 750
+const STEP_TRANSITION_MS = 700
 const COUNTDOWN_SECONDS = 3
 
 type ScanPhase = 'ready' | 'countdown' | 'scanning' | 'done'
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
-// Web Audio API chimes for condition match, snap, and completion
 function playBiometricChime(type: 'target_met' | 'snap' | 'complete') {
   try {
     const AudioCtx =
@@ -35,7 +42,7 @@ function playBiometricChime(type: 'target_met' | 'snap' | 'complete') {
       osc.type = 'sine'
       osc.frequency.setValueAtTime(440, ctx.currentTime)
       osc.frequency.exponentialRampToValueAtTime(587.33, ctx.currentTime + 0.08)
-      gain.gain.setValueAtTime(0.06, ctx.currentTime)
+      gain.gain.setValueAtTime(0.05, ctx.currentTime)
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
       osc.start(ctx.currentTime)
       osc.stop(ctx.currentTime + 0.12)
@@ -43,7 +50,7 @@ function playBiometricChime(type: 'target_met' | 'snap' | 'complete') {
       osc.type = 'triangle'
       osc.frequency.setValueAtTime(659.25, ctx.currentTime)
       osc.frequency.exponentialRampToValueAtTime(987.77, ctx.currentTime + 0.07)
-      gain.gain.setValueAtTime(0.12, ctx.currentTime)
+      gain.gain.setValueAtTime(0.1, ctx.currentTime)
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14)
       osc.start(ctx.currentTime)
       osc.stop(ctx.currentTime + 0.14)
@@ -54,13 +61,13 @@ function playBiometricChime(type: 'target_met' | 'snap' | 'complete') {
       osc.frequency.setValueAtTime(659.25, now + 0.09)
       osc.frequency.setValueAtTime(783.99, now + 0.18)
       osc.frequency.setValueAtTime(1046.5, now + 0.28)
-      gain.gain.setValueAtTime(0.15, now)
+      gain.gain.setValueAtTime(0.12, now)
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
       osc.start(now)
       osc.stop(now + 0.5)
     }
   } catch {
-    // Audio autoplay restrictions ignored
+    // Ignore autoplay restriction
   }
 }
 
@@ -93,29 +100,27 @@ export function WebcamCapture({
   const probeCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const capturedPhotosRef = useRef<File[]>([])
 
-  // Camera connection states
   const [cameraState, setCameraState] = useState<'starting' | 'running' | 'error' | 'unsupported'>('starting')
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('')
-  const [audioEnabled, setAudioEnabled] = useState(true)
+  const [showLivenessInfo, setShowLivenessInfo] = useState(false)
 
-  // Live 3D pose tracking states
+  // Live 3D pose & flash liveness states
   const [faceDetected, setFaceDetected] = useState(false)
   const [liveYaw, setLiveYaw] = useState(0)
   const [livePitch, setLivePitch] = useState(0)
   const [isConditionMet, setIsConditionMet] = useState(false)
   const [holdProgress, setHoldProgress] = useState(0)
-  const [isFlashing, setIsFlashing] = useState(false)
-  const [poseEngineError, setPoseEngineError] = useState<string | null>(null)
+  const [flashColor, setFlashColor] = useState<string | null>(null)
+  const [isCapturing, setIsCapturing] = useState(false)
 
-  // Workflow states — ALWAYS starts in 'ready' so user confirms before capturing
+  // Workflow states — always asks Ready before capturing
   const [phase, setPhaseState] = useState<ScanPhase>('ready')
-  const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS)
+  const [countdown, setCountdown] = useState<number | null>(null)
   const [currentStepIdx, setCurrentStepIdx] = useState(0)
   const scanFinished = phase === 'done'
 
-  // Mutable refs for real-time tracking loop
   const phaseRef = useRef<ScanPhase>('ready')
   const stepIdxRef = useRef(0)
   const photosInStepRef = useRef(0)
@@ -126,6 +131,7 @@ export function WebcamCapture({
   const targetMetChimedRef = useRef(false)
   const baselineRef = useRef<NeutralBaseline | null>(null)
   const targetDotRef = useRef({ yaw: 0, pitch: 0 })
+  const colorIdxRef = useRef(0)
 
   const setPhase = useCallback((next: ScanPhase) => {
     phaseRef.current = next
@@ -134,12 +140,7 @@ export function WebcamCapture({
 
   const currentStep = BIOMETRIC_STEPS[Math.min(currentStepIdx, BIOMETRIC_STEPS.length - 1)]
 
-  const overallProgress = Math.min(
-    100,
-    Math.round((files.length / Math.min(TOTAL_BIOMETRIC_TARGET, max)) * 100),
-  )
-
-  // Reset scan back to 'ready' if parent clears all photos
+  // Reset back to 'ready' if all photos are cleared externally
   useEffect(() => {
     if (files.length === 0 && phaseRef.current === 'done') {
       stepIdxRef.current = 0
@@ -154,10 +155,10 @@ export function WebcamCapture({
     }
   }, [files.length, setPhase])
 
-  // Smooth 60fps animation for the white head-tracking reticle dot
+  // Smooth 60fps animation for head-tracking dot inside the oval
   useEffect(() => {
     let raf = 0
-    const animateDot = () => {
+    const animate = () => {
       setLiveYaw((prev) => {
         const diff = targetDotRef.current.yaw - prev
         return Math.abs(diff) < 0.002 ? targetDotRef.current.yaw : prev + diff * 0.28
@@ -166,27 +167,27 @@ export function WebcamCapture({
         const diff = targetDotRef.current.pitch - prev
         return Math.abs(diff) < 0.002 ? targetDotRef.current.pitch : prev + diff * 0.28
       })
-      raf = requestAnimationFrame(animateDot)
+      raf = requestAnimationFrame(animate)
     }
-    raf = requestAnimationFrame(animateDot)
+    raf = requestAnimationFrame(animate)
     return () => cancelAnimationFrame(raf)
   }, [])
 
-  // 3-2-1 countdown after user clicks "I'm Ready"
+  // Countdown after user confirms they are ready
   useEffect(() => {
-    if (phase !== 'countdown') return
+    if (phase !== 'countdown' || countdown === null) return
     if (countdown <= 0) {
+      setCountdown(null)
       holdAccumMsRef.current = 0
       lastEvalAtRef.current = null
       stepPauseUntilRef.current = Date.now() + 200
       setPhase('scanning')
       return
     }
-    const timer = setTimeout(() => setCountdown((c) => c - 1), 850)
-    return () => clearTimeout(timer)
+    const t = setTimeout(() => setCountdown((c) => (c !== null ? c - 1 : null)), 850)
+    return () => clearTimeout(t)
   }, [phase, countdown, setPhase])
 
-  // Connect to camera
   const connectCamera = useCallback(async (deviceId?: string) => {
     setCameraState('starting')
     setCameraError(null)
@@ -198,7 +199,7 @@ export function WebcamCapture({
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraState('unsupported')
-      setCameraError('Camera access is not supported by your browser.')
+      setCameraError('Camera access is not supported by your browser or environment.')
       return
     }
 
@@ -237,13 +238,15 @@ export function WebcamCapture({
       if (err instanceof DOMException) {
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           setCameraError('Camera permission was denied. Please allow camera access in your browser settings.')
-        } else if (err.name === 'NotFoundError') {
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
           setCameraError('No webcam was found on this device.')
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          setCameraError('Camera is already in use by another application or tab.')
         } else {
           setCameraError(`Camera error: ${err.message}`)
         }
       } else {
-        setCameraError('Failed to access camera.')
+        setCameraError('Failed to access webcam.')
       }
     }
   }, [])
@@ -258,47 +261,94 @@ export function WebcamCapture({
     }
   }, [connectCamera])
 
-  // Snap high-resolution unmirrored photo from the live video feed
-  const autoSnap = useCallback(
-    async (stepId: string, subIdx: number): Promise<void> => {
+  // Capture frame with screen flash liveness illumination
+  const captureFrame = useCallback(
+    async (tag: string, fullChromaticSweep = false): Promise<File | null> => {
       const video = videoRef.current
-      if (!video || video.readyState < 2 || isSnappingRef.current) return
+      if (!video || video.readyState < 2 || isSnappingRef.current) return null
 
       isSnappingRef.current = true
-      setIsFlashing(true)
-      if (audioEnabled) playBiometricChime('snap')
+      setIsCapturing(true)
+      playBiometricChime('snap')
 
-      const captureCanvas = document.createElement('canvas')
-      captureCanvas.width = video.videoWidth || 1280
-      captureCanvas.height = video.videoHeight || 720
-      const ctx = captureCanvas.getContext('2d')
-
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height)
-
-        await new Promise((r) => setTimeout(r, 70))
-        setIsFlashing(false)
-
-        const blob = await new Promise<Blob | null>((resolve) =>
-          captureCanvas.toBlob(resolve, 'image/jpeg', 0.95),
-        )
-        if (blob) {
-          const filename = `face_${stepId}_angle${subIdx + 1}_${Date.now()}.jpg`
-          const file = new File([blob], filename, { type: 'image/jpeg' })
-          capturedPhotosRef.current.push(file)
-          onCapture(file)
+      if (fullChromaticSweep) {
+        for (const col of FLASH_COLORS) {
+          setFlashColor(col.hex)
+          await new Promise((r) => setTimeout(r, 80))
         }
       } else {
-        setIsFlashing(false)
+        const col = FLASH_COLORS[colorIdxRef.current % FLASH_COLORS.length]
+        colorIdxRef.current += 1
+        setFlashColor(col.hex)
+        await new Promise((r) => setTimeout(r, 95))
       }
 
-      await new Promise((r) => setTimeout(r, 220))
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth || 1280
+      canvas.height = video.videoHeight || 720
+      const ctx = canvas.getContext('2d')
+
+      let resultFile: File | null = null
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        await new Promise((r) => setTimeout(r, 55))
+        setFlashColor(null)
+
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, 'image/jpeg', 0.95),
+        )
+        if (blob) {
+          resultFile = new File([blob], `face_${tag}_${Date.now()}.jpg`, { type: 'image/jpeg' })
+          capturedPhotosRef.current.push(resultFile)
+          onCapture(resultFile)
+        }
+      } else {
+        setFlashColor(null)
+      }
+
+      setIsCapturing(false)
+      await new Promise((r) => setTimeout(r, 200))
       isSnappingRef.current = false
+      return resultFile
     },
-    [audioEnabled, onCapture],
+    [onCapture],
   )
 
-  // Real-time 3D Landmark Head-Pose Polling Loop (InsightFace 68-point 3D pose)
+  // Manual single snapshot fallback (kept intact from original design)
+  const handleSnap = async () => {
+    if (files.length >= max || isCapturing || disabled) return
+    await captureFrame(currentStep.id, true)
+  }
+
+  // Start guided hands-free scan after user confirms Ready
+  const handleStartScan = () => {
+    if (files.length >= max || isCapturing || disabled) return
+    stepIdxRef.current = 0
+    photosInStepRef.current = 0
+    holdAccumMsRef.current = 0
+    lastEvalAtRef.current = null
+    targetMetChimedRef.current = false
+    capturedPhotosRef.current = [...files]
+    setCurrentStepIdx(0)
+    setHoldProgress(0)
+    setIsConditionMet(false)
+    setCountdown(COUNTDOWN_SECONDS)
+    setPhase('countdown')
+  }
+
+  const stopGuidedSequence = () => {
+    holdAccumMsRef.current = 0
+    lastEvalAtRef.current = null
+    targetMetChimedRef.current = false
+    setCountdown(null)
+    setFlashColor(null)
+    setIsCapturing(false)
+    setHoldProgress(0)
+    setIsConditionMet(false)
+    setPhase('ready')
+  }
+
+  // Real-time 68-point 3D landmark head-pose tracking loop
   useEffect(() => {
     if (cameraState !== 'running' || scanFinished) return
 
@@ -338,7 +388,6 @@ export function WebcamCapture({
         try {
           const res = await detectHeadPose(blob, abortCtrl.signal)
           if (!active) break
-          setPoseEngineError(null)
 
           const now = Date.now()
           const dt = lastEvalAtRef.current ? Math.min(250, now - lastEvalAtRef.current) : 90
@@ -353,8 +402,7 @@ export function WebcamCapture({
             const p = res.pose
             setFaceDetected(true)
 
-            // Continuously calibrate straight-ahead neutral baseline during 'ready' and 'countdown'
-            // when the person is looking roughly toward the camera.
+            // Calibrate straight-ahead neutral angle while in 'ready' or 'countdown'
             if (
               (phaseRef.current === 'ready' || phaseRef.current === 'countdown') &&
               Math.abs(p.yaw_deg) < 16
@@ -381,7 +429,6 @@ export function WebcamCapture({
             const deltaNoseX = base ? p.nose_x_ratio - base.noseX : p.nose_x_ratio
             const deltaNoseY = base ? p.nose_y_ratio - base.noseY : p.nose_y_ratio - 0.56
 
-            // Fuse 3D landmark Euler angle + 5-point keypoint shift so whichever responds strongest drives the dot
             const fusedYawNorm =
               Math.abs(deltaNoseX / NOSE_X_THRESHOLD) > Math.abs(deltaYaw / YAW_THRESHOLD_DEG)
                 ? deltaNoseX / NOSE_X_THRESHOLD
@@ -392,11 +439,10 @@ export function WebcamCapture({
                 : deltaPitch / PITCH_THRESHOLD_DEG
 
             targetDotRef.current = {
-              yaw: clamp(fusedYawNorm * 0.22, -0.38, 0.38),
-              pitch: clamp(fusedPitchNorm * 0.18, -0.38, 0.38),
+              yaw: clamp(fusedYawNorm * 0.22, -0.36, 0.36),
+              pitch: clamp(fusedPitchNorm * 0.18, -0.36, 0.36),
             }
 
-            // Only evaluate pose capture conditions once user confirmed Ready and countdown finished
             if (phaseRef.current === 'scanning' && now >= stepPauseUntilRef.current) {
               const step = BIOMETRIC_STEPS[stepIdxRef.current]
               const centred =
@@ -408,7 +454,6 @@ export function WebcamCapture({
               if (step.id === 'center') {
                 conditionMet = centred && Math.abs(p.yaw_deg) < 16
                 if (conditionMet) {
-                  // Lock/refine neutral baseline while looking straight ahead in Step 1
                   baselineRef.current = base
                     ? {
                         yawDeg: base.yawDeg * 0.75 + p.yaw_deg * 0.25,
@@ -444,22 +489,19 @@ export function WebcamCapture({
               setIsConditionMet(conditionMet)
 
               if (conditionMet) {
-                if (!targetMetChimedRef.current && audioEnabled) {
+                if (!targetMetChimedRef.current) {
                   playBiometricChime('target_met')
                   targetMetChimedRef.current = true
                 }
                 holdAccumMsRef.current = Math.min(REQUIRED_HOLD_MS, holdAccumMsRef.current + dt)
               } else {
-                // Gentle decay instead of abrupt zeroing so minor frame jitter never stalls the scan
                 holdAccumMsRef.current = Math.max(0, holdAccumMsRef.current - dt * 0.65)
                 if (holdAccumMsRef.current === 0) targetMetChimedRef.current = false
               }
 
-              const progress = Math.min(
-                100,
-                Math.round((holdAccumMsRef.current / REQUIRED_HOLD_MS) * 100),
+              setHoldProgress(
+                Math.min(100, Math.round((holdAccumMsRef.current / REQUIRED_HOLD_MS) * 100)),
               )
-              setHoldProgress(progress)
 
               if (holdAccumMsRef.current >= REQUIRED_HOLD_MS) {
                 holdAccumMsRef.current = 0
@@ -469,17 +511,20 @@ export function WebcamCapture({
                 const nextSubIdx = photosInStepRef.current + 1
                 photosInStepRef.current = nextSubIdx
 
-                await autoSnap(step.id, nextSubIdx - 1)
+                await captureFrame(`${step.id}_angle${nextSubIdx}`, false)
                 lastEvalAtRef.current = Date.now()
 
                 if (nextSubIdx >= step.photosToCapture) {
                   photosInStepRef.current = 0
                   const nextStepIdx = stepIdxRef.current + 1
 
-                  if (nextStepIdx >= BIOMETRIC_STEPS.length || capturedPhotosRef.current.length >= max) {
+                  if (
+                    nextStepIdx >= BIOMETRIC_STEPS.length ||
+                    capturedPhotosRef.current.length >= Math.min(TOTAL_BIOMETRIC_TARGET, max)
+                  ) {
                     setPhase('done')
                     setIsConditionMet(false)
-                    if (audioEnabled) playBiometricChime('complete')
+                    playBiometricChime('complete')
                     if (onComplete) {
                       onComplete([...capturedPhotosRef.current])
                     }
@@ -497,66 +542,35 @@ export function WebcamCapture({
               setHoldProgress(0)
             }
           }
-        } catch (err: unknown) {
+        } catch {
           if (!active) break
-          // Surface 503 if AI stack is disabled, ignore transient aborts
-          if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 503) {
-            setPoseEngineError('Face recognition engine is offline on the backend.')
-          }
         }
 
         await new Promise((r) => setTimeout(r, 35))
       }
     }
 
-    pollPose()
+    void pollPose()
 
     return () => {
       active = false
       abortCtrl.abort()
     }
-  }, [cameraState, scanFinished, audioEnabled, autoSnap, max, onComplete, setPhase])
-
-  const handleStartScan = () => {
-    stepIdxRef.current = 0
-    photosInStepRef.current = 0
-    holdAccumMsRef.current = 0
-    lastEvalAtRef.current = null
-    targetMetChimedRef.current = false
-    capturedPhotosRef.current = [...files]
-    setCurrentStepIdx(0)
-    setHoldProgress(0)
-    setIsConditionMet(false)
-    setCountdown(COUNTDOWN_SECONDS)
-    setPhase('countdown')
-  }
-
-  const handleResetScan = () => {
-    stepIdxRef.current = 0
-    photosInStepRef.current = 0
-    holdAccumMsRef.current = 0
-    lastEvalAtRef.current = null
-    baselineRef.current = null
-    targetMetChimedRef.current = false
-    capturedPhotosRef.current = []
-    setCurrentStepIdx(0)
-    setHoldProgress(0)
-    setIsConditionMet(false)
-    setPhase('ready')
-  }
+  }, [cameraState, scanFinished, captureFrame, max, onComplete, setPhase])
 
   const targetX = 50 + currentStep.targetYaw * 120
   const targetY = 50 + currentStep.targetPitch * 120
   const liveX = 50 + liveYaw * 120
   const liveY = 50 + livePitch * 120
+  const isGuidedRunning = phase === 'countdown' || phase === 'scanning'
 
   return (
     <div className="space-y-4">
       <canvas ref={probeCanvasRef} className="hidden" />
 
-      {/* Main Biometric Viewfinder Container */}
-      <div className="relative aspect-[4/3] w-full max-w-xl mx-auto overflow-hidden rounded-3xl bg-slate-950 border-2 border-slate-800 shadow-2xl">
-        {/* Live Video Feed (Mirrored) */}
+      {/* Viewfinder Card — Original Navy + Marigold Design */}
+      <div className="relative aspect-[4/3] w-full max-w-xl mx-auto overflow-hidden rounded-2xl bg-navy-950 border border-navy-800 shadow-raised">
+        {/* Live video */}
         <video
           ref={videoRef}
           autoPlay
@@ -568,322 +582,240 @@ export function WebcamCapture({
           )}
         />
 
-        {/* Loading State */}
+        {/* Loading / Starting state */}
         {cameraState === 'starting' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white bg-slate-950">
-            <RefreshCw className="size-8 text-amber-400 animate-spin" />
-            <p className="text-xs font-medium text-slate-300">Activating camera for biometric scan...</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/80">
+            <div className="size-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            <p className="text-xs">Starting camera...</p>
           </div>
         )}
 
-        {/* Error / Permissions Blocked State */}
+        {/* Error / Unsupported state */}
         {(cameraState === 'error' || cameraState === 'unsupported') && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white bg-slate-900/95 z-30">
-            <p className="font-semibold text-sm mb-1">{cameraError ?? 'Camera unavailable'}</p>
-            <p className="text-xs text-slate-400 mb-4 max-w-sm">
-              Please grant camera access in your browser settings so Bantay can capture enrollment photos.
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white bg-gray-900/90">
+            <svg viewBox="0 0 24 24" className="size-10 text-red-400 mb-2" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="m3 3 18 18" />
+            </svg>
+            <p className="font-medium text-sm mb-1">{cameraError ?? 'Camera unavailable'}</p>
+            <p className="text-xs text-gray-400 mb-4 max-w-sm">
+              You can grant camera permissions and retry, or use the file upload option to add existing photos.
             </p>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => connectCamera(selectedDeviceId)}
-                className="text-white border-white/20 hover:bg-white/10"
-              >
+              <Button size="sm" variant="ghost" onClick={() => connectCamera(selectedDeviceId)} className="text-white border-white/20 hover:bg-white/10">
                 Retry Camera
               </Button>
               {onSwitchToUpload && (
                 <Button size="sm" variant="primary" onClick={onSwitchToUpload}>
-                  Upload Files Instead
+                  Upload Photos Instead
                 </Button>
               )}
             </div>
           </div>
         )}
 
-        {/* Central Biometric Oval Viewfinder & Live Tracking Rings */}
-        <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-6">
-          <div className="relative size-56 sm:size-68 flex items-center justify-center">
-            {/* SVG Biometric Circle & Dynamic Progress Ring */}
-            <svg className="absolute inset-0 size-full -rotate-90" viewBox="0 0 100 100">
-              <circle
-                cx="50"
-                cy="50"
-                r="44"
-                className="stroke-white/20 fill-none"
-                strokeWidth="2.5"
-                strokeDasharray="4 2"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="44"
-                className={cn(
-                  'transition-all duration-300 fill-none',
-                  scanFinished
-                    ? 'stroke-emerald-400'
-                    : isConditionMet
-                      ? 'stroke-emerald-400'
-                      : phase === 'scanning'
-                        ? 'stroke-amber-400'
-                        : 'stroke-white/40',
-                )}
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                strokeDasharray="276.46"
-                strokeDashoffset={276.46 - (276.46 * overallProgress) / 100}
-              />
-            </svg>
+        {/* Active Flash Liveness Illumination Overlay */}
+        {flashColor && (
+          <div
+            className="absolute inset-0 z-40 pointer-events-none transition-colors duration-75 flex items-center justify-center"
+            style={{ backgroundColor: flashColor, opacity: 0.95 }}
+          >
+            <div className="rounded-full bg-navy-950/60 px-4 py-1.5 text-xs font-semibold text-white tracking-wide shadow-lg">
+              ✨ Liveness Flash Reflection
+            </div>
+          </div>
+        )}
 
-            {/* Viewfinder Oval Target Border */}
+        {/* Face Oval Silhouette Guide & Cutout */}
+        {cameraState === 'running' && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            {/* Centered oval cutout with darkened exterior via box shadow */}
             <div
               className={cn(
-                'absolute inset-5 rounded-[46%] border-2 transition-all duration-300 pointer-events-none flex items-center justify-center',
-                scanFinished
-                  ? 'border-emerald-400 ring-4 ring-emerald-500/30'
-                  : isConditionMet
-                    ? 'border-emerald-400 ring-4 ring-emerald-400/40'
-                    : faceDetected
-                      ? 'border-white/80'
-                      : 'border-dashed border-white/30',
+                'relative w-44 h-60 sm:w-52 sm:h-72 rounded-[50%] border-2 transition-all duration-200 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]',
+                countdown !== null
+                  ? 'border-marigold-400 scale-105 shadow-[0_0_20px_rgba(251,191,36,0.5),0_0_0_9999px_rgba(0,0,0,0.65)]'
+                  : flashColor
+                    ? 'border-white scale-110 shadow-[0_0_30px_rgba(255,255,255,0.8),0_0_0_9999px_rgba(0,0,0,0.7)]'
+                    : isConditionMet || scanFinished
+                      ? 'border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.45),0_0_0_9999px_rgba(0,0,0,0.55)]'
+                      : faceDetected
+                        ? 'border-marigold-400'
+                        : 'border-white/70 border-dashed',
               )}
             >
-              {/* Reticle Visual Guide (Target Zone & User Live Face Dot) */}
-              {!scanFinished && faceDetected && (
-                <div className="relative size-full pointer-events-none">
+              {/* Corner alignment brackets */}
+              <div className="absolute -top-1 -left-1 size-3 border-t-2 border-l-2 border-marigold-400" />
+              <div className="absolute -top-1 -right-1 size-3 border-t-2 border-r-2 border-marigold-400" />
+              <div className="absolute -bottom-1 -left-1 size-3 border-b-2 border-l-2 border-marigold-400" />
+              <div className="absolute -bottom-1 -right-1 size-3 border-b-2 border-r-2 border-marigold-400" />
+
+              {/* Live Head Tracking Dot & Target Marker inside Oval */}
+              {!scanFinished && faceDetected && countdown === null && (
+                <div className="absolute inset-0">
                   {phase === 'scanning' && (
                     <div
-                      className="absolute size-8 rounded-full border-2 border-amber-400/90 bg-amber-400/20 flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300"
+                      className="absolute size-7 rounded-full border-2 border-marigold-400 bg-marigold-400/20 flex items-center justify-center -translate-x-1/2 -translate-y-1/2 transition-all duration-300"
                       style={{ left: `${targetX}%`, top: `${targetY}%` }}
                     >
-                      <span className="size-2 rounded-full bg-amber-400 animate-ping" />
+                      <span className="size-2 rounded-full bg-marigold-400 animate-ping" />
                     </div>
                   )}
-
                   <div
                     className={cn(
-                      'absolute size-4 rounded-full shadow-lg transform -translate-x-1/2 -translate-y-1/2',
+                      'absolute size-3.5 rounded-full shadow -translate-x-1/2 -translate-y-1/2',
                       isConditionMet
-                        ? 'bg-emerald-400 ring-4 ring-emerald-400/50 scale-125'
+                        ? 'bg-emerald-400 ring-4 ring-emerald-400/40 scale-125'
                         : 'bg-white ring-2 ring-white/50',
                     )}
                     style={{ left: `${liveX}%`, top: `${liveY}%` }}
                   />
                 </div>
               )}
-            </div>
 
-            {/* Countdown Numbers Inside Oval */}
-            {phase === 'countdown' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
-                <span className="text-6xl font-extrabold text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
-                  {countdown > 0 ? countdown : 'GO'}
-                </span>
-              </div>
-            )}
-
-            {/* Condition Hold Progress Meter */}
-            {phase === 'scanning' && isConditionMet && !scanFinished && holdProgress > 0 && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-                <div className="bg-slate-950/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-emerald-400 text-emerald-300 text-xs font-bold tracking-wide shadow-xl flex items-center gap-1.5">
-                  <span className="size-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>HOLD STEADY ({holdProgress}%)</span>
+              {/* Countdown overlay inside oval */}
+              {countdown !== null && countdown > 0 && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex size-16 items-center justify-center rounded-full bg-navy-950/70 text-3xl font-bold text-marigold-300 animate-pulse border-2 border-marigold-400">
+                    {countdown}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
 
-        {/* Top Floating Instruction / Ready Confirmation Banner */}
+              {/* Hold Steady pill inside oval when pose matches */}
+              {phase === 'scanning' && isConditionMet && holdProgress > 0 && (
+                <div className="absolute inset-x-0 bottom-4 flex justify-center">
+                  <span className="rounded-full bg-navy-950/80 px-3 py-1 text-[11px] font-semibold text-emerald-300 border border-emerald-400/60">
+                    Hold steady ({holdProgress}%)
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Top Floating Instruction Pill — Original Slim Pill Design */}
         {cameraState === 'running' && (
-          <div className="absolute top-3 inset-x-3 flex justify-center z-20 pointer-events-none">
-            <div className="max-w-md w-full bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl px-4 py-2.5 shadow-2xl text-center">
+          <div className="absolute top-3 inset-x-3 z-20 flex items-center justify-between gap-2 pointer-events-none">
+            <div className="flex items-center gap-2 rounded-full bg-navy-950/70 backdrop-blur-md px-3.5 py-1 text-xs text-white border border-white/10 shadow">
+              <span
+                className={cn(
+                  'size-2 rounded-full shrink-0',
+                  scanFinished || isConditionMet || (phase === 'ready' && faceDetected)
+                    ? 'bg-emerald-400 animate-ping'
+                    : 'bg-marigold-400 animate-pulse',
+                )}
+              />
               {scanFinished ? (
-                <div className="space-y-0.5 py-0.5">
-                  <div className="flex items-center justify-center gap-2 text-emerald-400 text-sm font-bold">
-                    <CheckCircle2 className="size-4" />
-                    <span>Biometric Face Scan Complete!</span>
-                  </div>
-                  <p className="text-xs text-slate-300">
-                    {files.length} multi-angle face photos captured. Review below and click Enroll.
-                  </p>
-                </div>
+                <span className="font-semibold text-emerald-300">
+                  Scan complete · {files.length} photos captured
+                </span>
               ) : phase === 'ready' ? (
-                <div className="space-y-0.5">
-                  <p className="text-sm font-bold text-white">Are you ready to scan your face?</p>
-                  <p className="text-[11px] text-slate-300">
-                    {poseEngineError ? (
-                      <span className="text-red-400">{poseEngineError}</span>
-                    ) : faceDetected ? (
-                      <span className="text-emerald-400 font-medium">
-                        ✓ Face centered &amp; tracked — click &ldquo;I&apos;m Ready&rdquo; below when set!
-                      </span>
-                    ) : (
-                      'Position your face inside the oval frame in good lighting, then press Ready.'
-                    )}
-                  </p>
-                </div>
+                <>
+                  <span className="font-semibold">Are you ready?</span>
+                  <span className="text-white/60">·</span>
+                  <span className="text-white/90">
+                    {faceDetected ? 'Face centered — click Ready below to start' : 'Center your face inside the oval'}
+                  </span>
+                </>
               ) : phase === 'countdown' ? (
-                <div className="space-y-0.5">
-                  <p className="text-sm font-bold text-amber-300">Get Ready — Look Straight Ahead</p>
-                  <p className="text-[11px] text-slate-300">
-                    Calibrating your neutral head angle before starting automatic capture…
-                  </p>
-                </div>
+                <>
+                  <span className="font-semibold">Get ready</span>
+                  <span className="text-white/60">·</span>
+                  <span className="text-white/90">Look straight at the camera</span>
+                </>
               ) : (
-                <div className="space-y-0.5">
-                  <div className="flex items-center justify-between text-xs font-bold text-amber-400">
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-base">{currentStep.angleIcon}</span>
-                      <span>{currentStep.title}</span>
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-normal">
-                      {files.length}/{Math.min(TOTAL_BIOMETRIC_TARGET, max)} photos
-                    </span>
-                  </div>
+                <>
+                  <span className="font-semibold">{currentStep.title}</span>
+                  <span className="text-white/60">·</span>
+                  <span className="text-white/90">{currentStep.instruction}</span>
+                </>
+              )}
+            </div>
 
-                  <p className="text-sm font-bold text-white tracking-wide pt-0.5">
-                    {currentStep.instruction}
-                  </p>
-                  <p className="text-[11px] text-slate-300">
-                    {isConditionMet
-                      ? '✨ Pose matched! Hold briefly for automatic snapshot...'
-                      : currentStep.subtext}
-                  </p>
-                </div>
+            {/* Camera switch selector if multiple cameras exist */}
+            {devices.length > 1 && (
+              <select
+                aria-label="Select camera"
+                value={selectedDeviceId}
+                onChange={(e) => connectCamera(e.target.value)}
+                className="pointer-events-auto rounded-full bg-navy-950/70 px-2.5 py-1 text-xs text-white border border-white/20 backdrop-blur-md focus:outline-none"
+              >
+                {devices.map((d, i) => (
+                  <option key={d.deviceId || i} value={d.deviceId}>
+                    {d.label || `Camera ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+
+        {/* Bottom Shutter & Controls Bar — Original Design */}
+        {cameraState === 'running' && (
+          <div className="absolute bottom-3 inset-x-3 z-20 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-white/80 bg-navy-950/60 px-2.5 py-1 rounded-md backdrop-blur-xs">
+              {files.length} of {max} photos taken
+            </span>
+
+            <div className="flex items-center gap-2">
+              {isGuidedRunning ? (
+                <Button size="sm" variant="danger" onClick={stopGuidedSequence}>
+                  Cancel Scan
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={handleStartScan}
+                    disabled={files.length >= max || isCapturing || disabled}
+                  >
+                    {scanFinished ? 'Scan Again' : "I'm Ready — Start Scan"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSnap}
+                    disabled={files.length >= max || isCapturing || disabled}
+                    className="bg-white/15 text-white hover:bg-white/25 border-white/20"
+                    title="Take a single photo with flash"
+                  >
+                    Snap Single
+                  </Button>
+                </>
               )}
             </div>
           </div>
         )}
-
-        {/* Prominent "I'm Ready — Start Face Scan" Action Button Overlay (Before Capturing) */}
-        {cameraState === 'running' && phase === 'ready' && (
-          <div className="absolute bottom-12 inset-x-4 flex justify-center z-25">
-            <button
-              type="button"
-              onClick={handleStartScan}
-              disabled={disabled || files.length >= max || Boolean(poseEngineError)}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold shadow-2xl transition-all active:scale-95 disabled:opacity-50',
-                faceDetected
-                  ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 ring-4 ring-emerald-400/30'
-                  : 'bg-amber-400 hover:bg-amber-300 text-slate-950 ring-4 ring-amber-400/25',
-              )}
-            >
-              <Play className="size-4 fill-current" />
-              <span>I&apos;m Ready — Start Scan</span>
-            </button>
-          </div>
-        )}
-
-        {/* Screen Flash Illumination (During Auto-Snapshot) */}
-        {isFlashing && (
-          <div className="absolute inset-0 bg-white/95 z-30 transition-opacity duration-75 pointer-events-none flex items-center justify-center">
-            <span className="text-xs font-extrabold text-slate-950 bg-white px-4 py-1.5 rounded-full shadow-2xl">
-              ⚡ AUTO-CAPTURED
-            </span>
-          </div>
-        )}
-
-        {/* Audio Toggle & Camera Selector */}
-        <div className="absolute bottom-3 inset-x-4 flex items-center justify-between text-xs text-white/80 z-20">
-          <button
-            type="button"
-            onClick={() => setAudioEnabled(!audioEnabled)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900/80 backdrop-blur-xs hover:bg-slate-800 text-slate-300 transition"
-            title="Toggle audio chimes"
-          >
-            {audioEnabled ? <Volume2 className="size-3.5 text-emerald-400" /> : <VolumeX className="size-3.5" />}
-            <span className="text-[11px]">{audioEnabled ? 'Chimes on' : 'Muted'}</span>
-          </button>
-
-          {devices.length > 1 && (
-            <select
-              value={selectedDeviceId}
-              onChange={(e) => connectCamera(e.target.value)}
-              className="bg-slate-900/80 backdrop-blur-xs border border-slate-700 text-[11px] rounded-lg px-2 py-1 text-slate-300 focus:outline-none"
-            >
-              {devices.map((d) => (
-                <option key={d.deviceId} value={d.deviceId}>
-                  {d.label || `Camera ${d.deviceId.slice(0, 5)}`}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
       </div>
 
-      {/* Real-Time Guided Pose Progress Indicators */}
-      <div className="max-w-xl mx-auto space-y-2">
-        <div className="grid grid-cols-5 gap-1.5">
-          {BIOMETRIC_STEPS.map((step, idx) => {
-            const isDone = scanFinished || (phase === 'scanning' && currentStepIdx > idx)
-            const isCurrent = phase === 'scanning' && currentStepIdx === idx
-            return (
-              <div
-                key={step.id}
-                className={cn(
-                  'flex flex-col items-center justify-center p-2 rounded-xl text-center border text-[11px] transition',
-                  isDone
-                    ? 'border-emerald-400 bg-emerald-50 text-emerald-800 font-semibold'
-                    : isCurrent
-                      ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold ring-2 ring-amber-400 shadow-xs'
-                      : 'border-gray-200 bg-gray-50/60 text-gray-500',
-                )}
-              >
-                <span className="text-base">{isDone ? '✓' : step.angleIcon}</span>
-                <span className="truncate w-full mt-0.5 text-[10px]">
-                  {step.title.split('. ')[1]}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Status Callout Banner */}
-        <div className="flex items-center justify-between text-xs px-1 text-gray-600">
-          <div className="flex items-center gap-2">
-            <span className="relative flex size-2.5">
-              <span
-                className={cn(
-                  'animate-ping absolute inline-flex size-full rounded-full opacity-75',
-                  isConditionMet || (phase === 'ready' && faceDetected) ? 'bg-emerald-400' : 'bg-amber-400',
-                )}
-              />
-              <span
-                className={cn(
-                  'relative inline-flex rounded-full size-2.5',
-                  isConditionMet || (phase === 'ready' && faceDetected) ? 'bg-emerald-500' : 'bg-amber-500',
-                )}
-              />
-            </span>
-            <span className="font-medium text-gray-700">
-              {scanFinished
-                ? `All ${files.length} multi-angle biometric photos acquired!`
-                : phase === 'ready'
-                  ? 'Waiting for confirmation — press "I\'m Ready — Start Scan" when set.'
-                  : phase === 'countdown'
-                    ? 'Starting scan — keep looking straight ahead...'
-                    : isConditionMet
-                      ? 'Pose matched! Holding for automatic snapshot...'
-                      : faceDetected
-                        ? `Move your head: ${currentStep.instruction}`
-                        : 'Center your face inside the oval...'}
-            </span>
+      {/* Liveness Flash Explanation Note (GoTyme/MariBank reference) — Original Marigold Card */}
+      <div className="rounded-lg border border-marigold-200 bg-marigold-50 p-3 text-xs text-gray-700">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-1.5 font-medium text-navy-900">
+            <svg viewBox="0 0 20 20" className="size-4 text-marigold-500 shrink-0" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clipRule="evenodd" />
+            </svg>
+            <span>Active Screen Flash Liveness &amp; Guided Head Tracking</span>
           </div>
-
-          {phase !== 'ready' && (
-            <button
-              type="button"
-              onClick={handleResetScan}
-              disabled={disabled}
-              className="inline-flex items-center gap-1 text-xs text-navy-700 hover:text-navy-900 font-medium"
-            >
-              <RefreshCw className="size-3" />
-              <span>Restart Scan</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowLivenessInfo((v) => !v)}
+            className="text-[11px] font-medium text-navy-700 hover:text-navy-900 underline"
+          >
+            {showLivenessInfo ? 'Hide explanation' : 'Why does the screen flash colors?'}
+          </button>
         </div>
+
+        {showLivenessInfo && (
+          <p className="mt-2 text-gray-600 leading-relaxed border-t border-marigold-100 pt-2">
+            Similar to banking KYC applications like <strong>GoTyme</strong> and <strong>MariBank</strong>,
+            you simply confirm when ready and move your head smoothly (center, left, right, up, down) while
+            the screen projects high-contrast chromatic light onto your face during automatic capture.
+            This collects multi-angle embeddings for higher recognition accuracy while verifying physical liveness.
+          </p>
+        )}
       </div>
     </div>
   )
