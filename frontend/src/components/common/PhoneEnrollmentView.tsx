@@ -35,19 +35,30 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const mountedRef = useRef(true)
+
+  const stopTimers = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }
 
   // Start or reset session
   const initSession = async () => {
+    stopTimers()
     setLoading(true)
     setError(null)
     setTransferring(false)
     setTransferredCount(null)
 
-    if (pollingRef.current) clearInterval(pollingRef.current)
-    if (timerRef.current) clearInterval(timerRef.current)
-
     try {
       const data = await createEnrollmentSession()
+      if (!mountedRef.current) return
       setSession(data)
 
       // Resolve host IP
@@ -57,6 +68,7 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
         currentHost === 'localhost' || currentHost === '127.0.0.1' ? data.network_ip : currentHost
       const port = window.location.port ? `:${window.location.port}` : ''
       const url = `${window.location.protocol}//${targetHost}${port}/enroll/mobile?session=${data.session_id}`
+      if (!mountedRef.current) return
       setMobileUrl(url)
 
       // Render QR code
@@ -74,11 +86,11 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
       // Countdown timer
       const expiresAt = new Date(data.expires_at).getTime()
       const updateTimer = () => {
+        if (!mountedRef.current) return
         const diff = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
         if (diff <= 0) {
           setTimeLeft('Expired')
-          if (timerRef.current) clearInterval(timerRef.current)
-          if (pollingRef.current) clearInterval(pollingRef.current)
+          stopTimers()
         } else {
           const m = Math.floor(diff / 60)
           const s = diff % 60
@@ -89,14 +101,20 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
       timerRef.current = setInterval(updateTimer, 1000)
 
       // Start Polling loop
+      let consecutiveErrors = 0
       pollingRef.current = setInterval(async () => {
+        if (!mountedRef.current) {
+          stopTimers()
+          return
+        }
+
         try {
           const status = await getEnrollmentSession(data.session_id)
+          consecutiveErrors = 0
+
           if (status.status === 'received' && status.photos.length > 0) {
             // Photos uploaded from phone!
-            if (pollingRef.current) clearInterval(pollingRef.current)
-            if (timerRef.current) clearInterval(timerRef.current)
-
+            stopTimers()
             setTransferring(true)
             setTransferredCount(status.photos.length)
 
@@ -112,32 +130,41 @@ export function PhoneEnrollmentView({ onPhotosReceived, disabled }: PhoneEnrollm
             }
 
             // Deliver to parent
-            onPhotosReceived(files)
-            setTransferring(false)
+            if (mountedRef.current) {
+              onPhotosReceived(files)
+              setTransferring(false)
+            }
 
             // Cleanup session on backend
             deleteEnrollmentSession(data.session_id).catch(() => undefined)
           } else if (status.status === 'expired') {
-            if (pollingRef.current) clearInterval(pollingRef.current)
-            setTimeLeft('Expired')
+            stopTimers()
+            if (mountedRef.current) setTimeLeft('Expired')
           }
         } catch {
-          // ignore transient poll errors
+          consecutiveErrors++
+          // If session returned 404 or fails repeatedly, stop polling cleanly
+          if (consecutiveErrors >= 2) {
+            stopTimers()
+            if (mountedRef.current) setTimeLeft('Expired')
+          }
         }
       }, 1500)
     } catch (err) {
+      if (!mountedRef.current) return
       console.error('Failed to init enrollment session:', err)
       setError('Could not initialize mobile enrollment session. Ensure the backend is reachable.')
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
   }
 
   useEffect(() => {
+    mountedRef.current = true
     initSession()
     return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current)
-      if (timerRef.current) clearInterval(timerRef.current)
+      mountedRef.current = false
+      stopTimers()
     }
   }, [])
 
