@@ -9,6 +9,7 @@ subsequently received by the desktop client in real-time.
 from __future__ import annotations
 
 import datetime as dt
+import json
 import logging
 import os
 import shutil
@@ -80,6 +81,68 @@ class EnrollmentSession:
             logger.warning("Failed to clean temp dir %s: %s", self.temp_dir, exc)
 
 
+def _save_session_meta(session: EnrollmentSession) -> None:
+    try:
+        meta_file = session.temp_dir / "meta.json"
+        data = {
+            "id": session.id,
+            "created_at": session.created_at.isoformat(),
+            "expires_at": session.expires_at.isoformat(),
+            "status": session.status,
+            "photos": [
+                {
+                    "index": p.index,
+                    "filename": p.filename,
+                    "content_type": p.content_type,
+                    "size": p.size,
+                    "file_path": str(p.file_path),
+                }
+                for p in session.photos
+            ],
+        }
+        with open(meta_file, "w") as f:
+            json.dump(data, f)
+    except Exception as exc:
+        logger.warning("Could not persist session metadata for %s: %s", session.id, exc)
+
+
+def _load_session_meta(session_id: str) -> EnrollmentSession | None:
+    session_dir = BASE_TEMP_DIR / session_id
+    meta_file = session_dir / "meta.json"
+    if not meta_file.exists():
+        return None
+    try:
+        with open(meta_file, "r") as f:
+            data = json.load(f)
+        created_at = dt.datetime.fromisoformat(data["created_at"])
+        expires_at = dt.datetime.fromisoformat(data["expires_at"])
+        now = dt.datetime.now(dt.timezone.utc)
+        if now > expires_at:
+            shutil.rmtree(session_dir, ignore_errors=True)
+            return None
+        photos = [
+            SessionPhoto(
+                index=p["index"],
+                filename=p["filename"],
+                content_type=p["content_type"],
+                size=p["size"],
+                file_path=Path(p["file_path"]),
+            )
+            for p in data.get("photos", [])
+        ]
+        return EnrollmentSession(
+            id=session_id,
+            created_at=created_at,
+            expires_at=expires_at,
+            temp_dir=session_dir,
+            status=data.get("status", "pending"),
+            photos=photos,
+        )
+    except Exception as exc:
+        logger.warning("Could not load session metadata for %s: %s", session_id, exc)
+        return None
+
+
 class SessionStore:
     def __init__(self) -> None:
         self._sessions: dict[str, EnrollmentSession] = {}
@@ -112,6 +175,7 @@ class SessionStore:
             temp_dir=session_dir,
             status="pending",
         )
+        _save_session_meta(session)
         with self._lock:
             self._sessions[session_id] = session
         return session
@@ -119,6 +183,10 @@ class SessionStore:
     def get(self, session_id: str) -> EnrollmentSession | None:
         with self._lock:
             session = self._sessions.get(session_id)
+            if not session:
+                session = _load_session_meta(session_id)
+                if session:
+                    self._sessions[session_id] = session
             if not session:
                 return None
             if session.is_expired():
@@ -133,6 +201,8 @@ class SessionStore:
             session = self._sessions.pop(session_id, None)
             if session:
                 session.cleanup()
+            else:
+                shutil.rmtree(BASE_TEMP_DIR / session_id, ignore_errors=True)
 
 
 store = SessionStore()
@@ -258,7 +328,7 @@ async def upload_session_photos(
 
     # Clear any previous photos in this session
     session.photos.clear()
-    for existing in session.temp_dir.glob("*"):
+    for existing in session.temp_dir.glob("photo_*"):
         try:
             if existing.is_file():
                 existing.unlink()
@@ -297,6 +367,7 @@ async def upload_session_photos(
         )
 
     session.status = "received"
+    _save_session_meta(session)
     logger.info("Session %s received %d photos from mobile device", session_id, len(session.photos))
 
     photos_meta = [
