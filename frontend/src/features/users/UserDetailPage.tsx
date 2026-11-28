@@ -26,10 +26,9 @@ import { EntryDetail } from '@/features/entry-logs/components/EntryDetail'
 import { useAsync } from '@/hooks/useAsync'
 import { MIN_ENROLLMENT_PHOTOS, PERSON_TYPE_LABELS } from '@/lib/constants'
 import { formatDate, formatRelative, formatTime, pluralize } from '@/lib/format'
-import { AddFacesModal } from './components/AddFacesModal'
 import { FaceList } from './components/FaceList'
 
-type Dialog = 'edit' | 'faces' | 'deactivate' | 'delete' | null
+type Dialog = 'edit' | 'deactivate' | 'delete' | null
 
 export function UserDetailPage() {
   const id = Number(useParams().id)
@@ -133,7 +132,7 @@ export function UserDetailPage() {
               tone="warning"
               title={p.embedding_count === 0 ? 'Not enrolled yet' : 'More face photos needed'}
               action={
-                <Button size="sm" variant="primary" onClick={() => setDialog('faces')} icon={<ImagePlus />}>
+                <Button size="sm" variant="primary" onClick={() => navigate(`/enroll?person=${p.id}`)} icon={<ImagePlus />}>
                   Add face photos
                 </Button>
               }
@@ -167,7 +166,7 @@ export function UserDetailPage() {
             className="lg:col-span-2"
             flush
             actions={
-              <Button size="sm" onClick={() => setDialog('faces')} disabled={!p.consent_given} icon={<ImagePlus />}>
+              <Button size="sm" onClick={() => navigate(`/enroll?person=${p.id}`)} disabled={!p.consent_given} icon={<ImagePlus />}>
                 Add photos
               </Button>
             }
@@ -261,8 +260,6 @@ export function UserDetailPage() {
           )}
         />
       </Modal>
-
-      <AddFacesModal person={p} open={dialog === 'faces'} onClose={() => setDialog(null)} onUploaded={refresh} />
 
       <ConfirmDialog
         open={dialog === 'deactivate'}
