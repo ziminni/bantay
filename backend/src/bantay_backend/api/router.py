@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from ..config import settings
-from . import cameras, entries, flags, labs, persons, stats
+from . import cameras, enrollment_sessions, entries, flags, labs, persons, stats
 
 api_router = APIRouter(prefix=settings.api_prefix)
 
@@ -17,3 +17,4 @@ api_router.include_router(cameras.router)
 api_router.include_router(entries.router)
 api_router.include_router(entries.recognition_router)
 api_router.include_router(flags.router)
+api_router.include_router(enrollment_sessions.router)

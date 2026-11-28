@@ -13,6 +13,12 @@ const router = createBrowserRouter([
     hydrateFallbackElement: <LoadingState />,
     lazy: () => import('@/features/landing/LandingPage').then((m) => ({ Component: m.LandingPage })),
   },
+  // Mobile companion enrollment (public, gated by temporary session token in QR code)
+  {
+    path: '/enroll/mobile',
+    hydrateFallbackElement: <LoadingState />,
+    lazy: () => import('@/features/enroll/MobileEnrollPage').then((m) => ({ Component: m.MobileEnrollPage })),
+  },
   {
     // Every page of the app needs a login (see the note in src/api/auth.ts).
     element: (

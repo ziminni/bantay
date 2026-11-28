@@ -18,6 +18,7 @@ dependencies = [
     "psycopg[binary]>=3.3.9",
     "pydantic-settings>=2.16.3",
     "python-multipart>=0.0.34",
+    "python-pptx",
     "sqlalchemy>=2.1.9",
     "uvicorn[standard]>=0.54.0",
 ]
