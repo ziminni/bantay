@@ -8,7 +8,6 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DescriptionList } from '@/components/ui/DescriptionList'
 import { Drawer } from '@/components/ui/Drawer'
 import { useToast } from '@/components/ui/useToast'
-import { MOCK_MODE } from '@/config'
 import { formatDateTime, formatSimilarity } from '@/lib/format'
 
 interface EntryDetailProps {
@@ -96,17 +95,13 @@ export function EntryDetail({ entry, onClose, onDeleted }: EntryDetailProps) {
 function Snapshot({ path }: { path: string }) {
   return (
     <figure>
-      {MOCK_MODE ? (
-        <div className="flex aspect-video items-center justify-center rounded-xl bg-navy-900 p-4 text-center text-xs text-navy-200">
-          Snapshot of the unknown face appears here once the backend is connected
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-xl bg-navy-950 ring-1 ring-gray-200">
-          <img src={snapshotUrl(path)} alt="Snapshot of the unknown face" className="w-full" />
-        </div>
-      )}
+      <div className="overflow-hidden rounded-xl bg-navy-950 ring-1 ring-gray-200">
+        <img src={snapshotUrl(path)} alt="Snapshot of the unknown face" className="w-full" />
+      </div>
       <figcaption className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
-        <ScanFace className="size-3.5 text-marigold-500" aria-hidden />Captured when the face did not match anyone enrolled.</figcaption>
+        <ScanFace className="size-3.5 text-marigold-500" aria-hidden />
+        Captured when the face did not match anyone enrolled.
+      </figcaption>
     </figure>
   )
 }

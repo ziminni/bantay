@@ -30,215 +30,6 @@ def _utcnow() -> dt.datetime:
     return dt.datetime.now(dt.UTC)
 
 
-def seed_sample_flags(db: Session) -> list[BehaviorFlag]:
-    """Seed initial sample flags when the table is empty so review screens work immediately."""
-    labs = db.execute(select(Lab).order_by(Lab.id)).scalars().all()
-    if not labs:
-        return []
-
-    cameras = db.execute(select(Camera).order_by(Camera.id)).scalars().all()
-    now = _utcnow()
-
-    sample_templates = [
-        {
-            "type": FlagType.RUNNING,
-            "minutes_ago": 4,
-            "prefer_role": "ROOM",
-            "trigger": 2.6,
-            "evidence": {
-                "rule_set": "Pose",
-                "metric": "Hip speed",
-                "value": 2.14,
-                "threshold": 1.5,
-                "unit": "body-heights/s",
-                "direction": "above",
-                "held_seconds": 1.4,
-                "required_seconds": 1.0,
-                "track_id": 7,
-                "zone": None,
-                "object": None,
-            },
-        },
-        {
-            "type": FlagType.UNKNOWN_PERSON,
-            "minutes_ago": 16,
-            "prefer_role": "ENTRY",
-            "trigger": 3.0,
-            "evidence": {
-                "rule_set": "Face",
-                "metric": "Best similarity after voting",
-                "value": 0.31,
-                "threshold": 0.45,
-                "unit": "",
-                "direction": "below",
-                "held_seconds": None,
-                "required_seconds": None,
-                "track_id": None,
-                "zone": "Door",
-                "object": None,
-            },
-        },
-        {
-            "type": FlagType.EQUIPMENT_REMOVAL,
-            "minutes_ago": 41,
-            "prefer_role": "ROOM",
-            "trigger": 3.4,
-            "evidence": {
-                "rule_set": "Object",
-                "metric": "Missing since last wrist contact",
-                "value": 34.0,
-                "threshold": 30.0,
-                "unit": "s",
-                "direction": "above",
-                "held_seconds": 34.0,
-                "required_seconds": 30.0,
-                "track_id": 3,
-                "zone": "Workstation 2",
-                "object": "mouse #12",
-            },
-        },
-        {
-            "type": FlagType.UNAUTHORIZED_USE,
-            "minutes_ago": 73,
-            "prefer_role": "ROOM",
-            "trigger": 3.8,
-            "evidence": {
-                "rule_set": "Pose",
-                "metric": "Wrists on instructor PC",
-                "value": 7.2,
-                "threshold": 5.0,
-                "unit": "s",
-                "direction": "above",
-                "held_seconds": 7.2,
-                "required_seconds": 5.0,
-                "track_id": 11,
-                "zone": "Instructor PC",
-                "object": None,
-            },
-        },
-        {
-            "type": FlagType.RUNNING,
-            "minutes_ago": 118,
-            "prefer_role": "ROOM",
-            "trigger": 2.2,
-            "evidence": {
-                "rule_set": "Pose",
-                "metric": "Hip speed",
-                "value": 1.72,
-                "threshold": 1.5,
-                "unit": "body-heights/s",
-                "direction": "above",
-                "held_seconds": 1.1,
-                "required_seconds": 1.0,
-                "track_id": 4,
-                "zone": None,
-                "object": None,
-            },
-        },
-        {
-            "type": FlagType.EQUIPMENT_REMOVAL,
-            "minutes_ago": 166,
-            "prefer_role": "ROOM",
-            "trigger": 4.1,
-            "evidence": {
-                "rule_set": "Object",
-                "metric": "Carried into door zone",
-                "value": 1.0,
-                "threshold": 1.0,
-                "unit": "object",
-                "direction": "above",
-                "held_seconds": None,
-                "required_seconds": None,
-                "track_id": 9,
-                "zone": "Door",
-                "object": "keyboard #4",
-            },
-            "status": FlagStatus.CONFIRMED,
-            "reviewed_by": "Lab administrator",
-            "review_note": "Keyboard returned after talking to the student.",
-        },
-        {
-            "type": FlagType.UNAUTHORIZED_USE,
-            "minutes_ago": 231,
-            "prefer_role": "ROOM",
-            "trigger": 3.2,
-            "evidence": {
-                "rule_set": "Schedule",
-                "metric": "Wrists on workstation outside lab hours",
-                "value": 12.5,
-                "threshold": 10.0,
-                "unit": "s",
-                "direction": "above",
-                "held_seconds": 12.5,
-                "required_seconds": 10.0,
-                "track_id": 2,
-                "zone": "Workstation 1",
-                "object": None,
-            },
-            "status": FlagStatus.CONFIRMED,
-            "reviewed_by": "Lab administrator",
-            "review_note": "Used a PC after 8 PM without a permit.",
-        },
-        {
-            "type": FlagType.RUNNING,
-            "minutes_ago": 302,
-            "prefer_role": "ROOM",
-            "trigger": 2.9,
-            "evidence": {
-                "rule_set": "Pose",
-                "metric": "Hip speed",
-                "value": 1.58,
-                "threshold": 1.5,
-                "unit": "body-heights/s",
-                "direction": "above",
-                "held_seconds": 1.0,
-                "required_seconds": 1.0,
-                "track_id": 5,
-                "zone": None,
-                "object": None,
-            },
-            "status": FlagStatus.DISMISSED,
-            "reviewed_by": "Lab administrator",
-            "review_note": "Walking fast to catch a class; not running.",
-        },
-    ]
-
-    created: list[BehaviorFlag] = []
-    for i, t in enumerate(sample_templates):
-        lab = labs[i % len(labs)]
-        cam = next((c for c in cameras if c.lab_id == lab.id and c.role == t["prefer_role"]), None)
-        if not cam:
-            cam = next((c for c in cameras if c.lab_id == lab.id), None)
-
-        occurred = now - dt.timedelta(minutes=t["minutes_ago"])
-        status_val = t.get("status", FlagStatus.PENDING)
-        reviewed_by = t.get("reviewed_by")
-        reviewed_at = occurred + dt.timedelta(minutes=20) if status_val != FlagStatus.PENDING else None
-
-        flag = BehaviorFlag(
-            type=t["type"],
-            status=status_val,
-            occurred_at=occurred,
-            lab_id=lab.id,
-            camera_id=cam.id if cam else None,
-            evidence=t["evidence"],
-            snapshot_path=None,
-            clip_path=None,
-            trigger_offset=t["trigger"],
-            responsible_entry_ids=[],
-            reviewed_by=reviewed_by,
-            reviewed_at=reviewed_at,
-            review_note=t.get("review_note"),
-        )
-        db.add(flag)
-        created.append(flag)
-
-    db.commit()
-    for f in created:
-        db.refresh(f)
-    return created
-
-
 def _build_flag_read(db: Session, flag: BehaviorFlag) -> FlagRead:
     """Format BehaviorFlag model into FlagRead schema with computed persons_inside."""
     # Find entries in the 3 hours before occurred_at
@@ -288,6 +79,13 @@ def _build_flag_read(db: Session, flag: BehaviorFlag) -> FlagRead:
     evidence_dict = flag.evidence if isinstance(flag.evidence, dict) else {}
     evidence = FlagEvidence(**evidence_dict)
 
+    snapshot_path = flag.snapshot_path
+    if not snapshot_path and flag.type == FlagType.UNKNOWN_PERSON:
+        for e in entries:
+            if e.snapshot_path:
+                snapshot_path = e.snapshot_path
+                break
+
     return FlagRead(
         id=flag.id,
         type=flag.type,
@@ -298,7 +96,7 @@ def _build_flag_read(db: Session, flag: BehaviorFlag) -> FlagRead:
         camera_id=flag.camera_id,
         camera_name=flag.camera.name if flag.camera else None,
         evidence=evidence,
-        snapshot_path=flag.snapshot_path,
+        snapshot_path=snapshot_path,
         clip_path=flag.clip_path,
         trigger_offset=flag.trigger_offset,
         persons_inside=persons_inside,
@@ -316,11 +114,6 @@ def list_flags(
     db: Session = Depends(get_db),
 ) -> list[FlagRead]:
     """List behaviour flags, newest first, with optional status, type, and lab filters."""
-    # Check if empty, seed if so
-    count = db.execute(select(func.count(BehaviorFlag.id))).scalar_one()
-    if count == 0:
-        seed_sample_flags(db)
-
     query = select(BehaviorFlag).options(
         joinedload(BehaviorFlag.lab),
         joinedload(BehaviorFlag.camera),
@@ -343,10 +136,6 @@ def get_flag_counts(
     db: Session = Depends(get_db),
 ) -> FlagCounts:
     """Return counts of flags by status (PENDING, CONFIRMED, DISMISSED)."""
-    count = db.execute(select(func.count(BehaviorFlag.id))).scalar_one()
-    if count == 0:
-        seed_sample_flags(db)
-
     query = select(BehaviorFlag.status, func.count(BehaviorFlag.id)).group_by(
         BehaviorFlag.status
     )

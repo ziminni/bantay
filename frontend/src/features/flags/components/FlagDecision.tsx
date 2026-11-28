@@ -87,7 +87,7 @@ export function FlagDecision({ flag, onReviewed }: { flag: FlagRead; onReviewed:
         title="Persons inside at that time"
         description={
           pending
-            ? 'Everyone who entered this lab in the 3 hours before. Tick who did it, if you can tell from the clip.'
+            ? 'Everyone who entered this lab in the 3 hours before. Tick who did it, if you can tell from the snapshot.'
             : 'Everyone who entered this lab in the 3 hours before.'
         }
         icon={<Users />}
@@ -159,7 +159,7 @@ export function FlagDecision({ flag, onReviewed }: { flag: FlagRead; onReviewed:
             rows={3}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="What you saw in the clip, who you talked to…"
+            placeholder="What you saw in the snapshot or entry, who you talked to…"
           />
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button variant="primary" loading={busy === 'CONFIRMED'} disabled={busy !== null} onClick={() => decide('CONFIRMED')} icon={<CheckCircle2 />}>

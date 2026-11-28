@@ -21,51 +21,93 @@ def _create_lab(client: TestClient, name: str = "CL-1") -> dict:
     return resp.json()
 
 
-def test_flags_empty_and_seed(client: TestClient, db: Session):
-    # Without labs, listing flags returns empty list
+def test_flags_empty_and_list(client: TestClient):
+    # Empty flags table returns empty list
     resp = client.get("/api/v1/flags")
     assert resp.status_code == 200
     assert resp.json() == []
 
-    # Create a lab, then list flags triggers initial seeding
+    # Create a lab and a real flag
     lab = _create_lab(client, "Lab Alpha")
+    payload = {
+        "type": "UNKNOWN_PERSON",
+        "lab_id": lab["id"],
+        "evidence": {
+            "rule_set": "Face",
+            "metric": "Best similarity after voting",
+            "value": 0.31,
+            "threshold": 0.45,
+            "unit": "",
+            "direction": "below",
+        },
+    }
+    create_resp = client.post("/api/v1/flags", json=payload)
+    assert create_resp.status_code == 201
+
     resp = client.get("/api/v1/flags")
     assert resp.status_code == 200
     flags = resp.json()
-    assert len(flags) > 0
+    assert len(flags) == 1
     assert flags[0]["lab_id"] == lab["id"]
+    assert flags[0]["type"] == "UNKNOWN_PERSON"
 
 
 def test_flag_counts(client: TestClient):
-    _create_lab(client, "Lab Counts")
+    lab = _create_lab(client, "Lab Counts")
+    # Initially 0
     resp = client.get("/api/v1/flags/counts")
     assert resp.status_code == 200
     counts = resp.json()
-    assert "PENDING" in counts
-    assert "CONFIRMED" in counts
-    assert "DISMISSED" in counts
-    assert counts["PENDING"] + counts["CONFIRMED"] + counts["DISMISSED"] > 0
+    assert counts == {"PENDING": 0, "CONFIRMED": 0, "DISMISSED": 0}
+
+    # Add a flag
+    payload = {
+        "type": "UNKNOWN_PERSON",
+        "lab_id": lab["id"],
+        "evidence": {
+            "rule_set": "Face",
+            "metric": "Best similarity after voting",
+            "value": 0.25,
+            "threshold": 0.45,
+            "direction": "below",
+        },
+    }
+    client.post("/api/v1/flags", json=payload)
+    counts = client.get("/api/v1/flags/counts").json()
+    assert counts["PENDING"] == 1
 
 
 def test_flag_review_and_reopen(client: TestClient):
     lab = _create_lab(client, "Lab Review")
-    flags = client.get("/api/v1/flags").json()
-    pending_flag = next(f for f in flags if f["status"] == "PENDING")
+    flag = client.post(
+        "/api/v1/flags",
+        json={
+            "type": "UNKNOWN_PERSON",
+            "lab_id": lab["id"],
+            "evidence": {
+                "rule_set": "Face",
+                "metric": "Best similarity after voting",
+                "value": 0.2,
+                "threshold": 0.45,
+                "direction": "below",
+            },
+        },
+    ).json()
 
     # Review flag: CONFIRMED
     resp = client.patch(
-        f"/api/v1/flags/{pending_flag['id']}",
-        json={"status": "CONFIRMED", "note": "Student admitted to running.", "responsible_entry_ids": []},
+        f"/api/v1/flags/{flag['id']}",
+        json={"status": "CONFIRMED", "note": "Unidentified visitor.", "responsible_entry_ids": []},
     )
     assert resp.status_code == 200
     updated = resp.json()
     assert updated["status"] == "CONFIRMED"
-    assert updated["review_note"] == "Student admitted to running."
+    assert updated["review_note"] == "Unidentified visitor."
     assert updated["reviewed_by"] is not None
     assert updated["reviewed_at"] is not None
 
     # Reopen flag back to PENDING
-    reopen_resp = client.post(f"/api/v1/flags/{pending_flag['id']}/reopen")
+    reopen_resp = client.post(f"/api/v1/flags/{flag['id']}/reopen")
     assert reopen_resp.status_code == 200
     reopened = reopen_resp.json()
     assert reopened["status"] == "PENDING"

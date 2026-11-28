@@ -1,5 +1,6 @@
-import { Pause, Play } from 'lucide-react'
+import { Pause, Play, ScanFace } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { snapshotUrl } from '@/api/entries'
 import type { FlagRead } from '@/api/types'
 import { cn } from '@/lib/cn'
 import { formatDateTime } from '@/lib/format'
@@ -127,6 +128,58 @@ function Figure({ flag, t, ghost = false, firing }: { flag: FlagRead; t: number;
  * the flag's evidence so reviewers can learn the screen.
  */
 export function FlagScene({ flag }: { flag: FlagRead }) {
+  // Unknown person incidents: display the actual snapshot picture, not a clip
+  if (flag.type === 'UNKNOWN_PERSON') {
+    return (
+      <div className="overflow-hidden rounded-2xl bg-navy-950 shadow-raised ring-1 ring-navy-900">
+        <div className="relative aspect-video w-full overflow-hidden bg-black flex items-center justify-center">
+          {flag.snapshot_path ? (
+            <img
+              src={snapshotUrl(flag.snapshot_path)}
+              alt={`Snapshot of unknown face for flag #${flag.id}`}
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 p-8 text-center text-navy-400">
+              <div className="flex size-16 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10">
+                <ScanFace className="size-8 stroke-[1.5] text-marigold-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-cream">Snapshot picture</p>
+                <p className="text-xs text-navy-300">Face snapshot captured at entrance camera.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Camera overlay burn-in */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 font-mono text-[11px] text-cream/90">
+            <span className="rounded bg-black/60 px-2.5 py-1 backdrop-blur-sm">
+              {(flag.camera_name ?? 'Entrance Camera').toUpperCase()} · {flag.lab_name} · SNAPSHOT
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 rounded bg-marigold-400 px-2 py-1 font-sans font-semibold text-navy-950">
+                <span className="size-1.5 animate-ping rounded-full bg-navy-950" />
+                UNKNOWN FACE DETECTED
+              </span>
+              <span className="rounded bg-black/60 px-2.5 py-1 backdrop-blur-sm">{formatDateTime(flag.occurred_at)}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Caption footer */}
+        <div className="flex items-center justify-between border-t border-white/10 px-4 py-3 text-xs text-navy-200">
+          <span className="flex items-center gap-2 font-mono">
+            <span className="rounded bg-marigold-400/15 px-2 py-0.5 font-semibold text-marigold-400">SNAPSHOT PIC</span>
+            <span>
+              Best similarity: {Math.round(flag.evidence.value * 100)}% (threshold: {Math.round(flag.evidence.threshold * 100)}%)
+            </span>
+          </span>
+          <span className="text-gray-400">{formatDateTime(flag.occurred_at)}</span>
+        </div>
+      </div>
+    )
+  }
+
   const [mode, setMode] = useState<'snapshot' | 'clip'>('snapshot')
   const [t, setT] = useState(flag.trigger_offset)
   const [playing, setPlaying] = useState(false)
@@ -148,8 +201,7 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
 
   const shownT = mode === 'snapshot' ? flag.trigger_offset : t
   const firing = shownT >= flag.trigger_offset && shownT <= flag.trigger_offset + 1.6
-  const entrance = flag.type === 'UNKNOWN_PERSON'
-  const zones = entrance ? ROOM_ZONES.filter((z) => z.kind === 'door') : ROOM_ZONES
+  const zones = ROOM_ZONES
   const highlighted = flag.evidence.zone
 
   const play = () => {
@@ -209,7 +261,7 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
         {/* Camera overlay, like a CCTV burn-in. */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 font-mono text-[11px] text-cream/90">
           <span className="rounded bg-black/40 px-2 py-1 backdrop-blur-sm">
-            {(flag.camera_name ?? 'Camera').toUpperCase()} · {flag.lab_name} · {entrance ? '10' : '5'} FPS
+            {(flag.camera_name ?? 'Camera').toUpperCase()} · {flag.lab_name} · 5 FPS
           </span>
           <span className="flex items-center gap-2">
             {firing && (
@@ -221,9 +273,6 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
             <span className="rounded bg-black/40 px-2 py-1 backdrop-blur-sm">{formatDateTime(flag.occurred_at)}</span>
           </span>
         </div>
-        <span className="pointer-events-none absolute bottom-3 left-3 rounded bg-white/10 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-cream/70 uppercase">
-          Sample reconstruction
-        </span>
       </div>
 
       {/* Controls */}
