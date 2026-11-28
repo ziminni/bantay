@@ -16,6 +16,7 @@ import { cn } from '@/lib/cn'
 import { formatDateTime } from '@/lib/format'
 import { FlagDecision } from './components/FlagDecision'
 import { FlagQueue } from './components/FlagQueue'
+import { FlagQueuePagination } from './components/FlagQueuePagination'
 import { FlagScene } from './components/FlagScene'
 import { RuleEvidence } from './components/RuleEvidence'
 
@@ -57,10 +58,33 @@ export function FlagsPage() {
   const counts = useFlagCounts()
   const items = list.data ?? []
 
+  const pageParam = Math.max(1, Number(params.get('page')) || 1)
+  const sizeParam = Math.max(1, Number(params.get('size')) || 10)
+
+  const total = items.length
+  const totalPages = Math.max(1, Math.ceil(total / sizeParam))
+  const currentPage = Math.min(pageParam, totalPages)
+  const pagedItems = items.slice((currentPage - 1) * sizeParam, currentPage * sizeParam)
+
   // On a wide screen, open the first flag so the page is never half empty.
   useEffect(() => {
     if (!selectedId && items.length > 0 && isDesktop()) navigate(`/flags/${items[0].id}${search}`, { replace: true })
   }, [selectedId, items, navigate, search])
+
+  // When selectedId is on another page, automatically navigate to that page so the card is visible in the queue
+  useEffect(() => {
+    if (!selectedId || items.length === 0) return
+    const idx = items.findIndex((f) => f.id === selectedId)
+    if (idx !== -1) {
+      const requiredPage = Math.floor(idx / sizeParam) + 1
+      if (requiredPage !== pageParam) {
+        const next = new URLSearchParams(params)
+        if (requiredPage > 1) next.set('page', String(requiredPage))
+        else next.delete('page')
+        navigate({ pathname: `/flags/${selectedId}`, search: next.toString() ? `?${next.toString()}` : '' }, { replace: true })
+      }
+    }
+  }, [selectedId, items, sizeParam, pageParam, params, navigate])
 
   const go = (flag: FlagRead | undefined) => flag && navigate(`/flags/${flag.id}${search}`)
 
@@ -90,8 +114,26 @@ export function FlagsPage() {
     const next = new URLSearchParams(params)
     if (value) next.set(key, value)
     else next.delete(key)
+    next.delete('page')
     // Changing the filter closes the open flag; the first match opens instead.
     navigate({ pathname: '/flags', search: next.toString() ? `?${next.toString()}` : '' }, { replace: true })
+  }
+
+  const handlePageChange = (newPage: number) => {
+    const next = new URLSearchParams(params)
+    if (newPage > 1) next.set('page', String(newPage))
+    else next.delete('page')
+    const currentPath = selectedId ? `/flags/${selectedId}` : '/flags'
+    navigate({ pathname: currentPath, search: next.toString() ? `?${next.toString()}` : '' })
+  }
+
+  const handleSizeChange = (newSize: number) => {
+    const next = new URLSearchParams(params)
+    if (newSize !== 10) next.set('size', String(newSize))
+    else next.delete('size')
+    next.delete('page')
+    const currentPath = selectedId ? `/flags/${selectedId}` : '/flags'
+    navigate({ pathname: currentPath, search: next.toString() ? `?${next.toString()}` : '' })
   }
 
   const flag = detail.data
@@ -116,10 +158,16 @@ export function FlagsPage() {
         Sample flags in your real labs: the behaviour worker is not running yet. Persons inside come from the real entry log.
       </p>
 
-      <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
         {/* Queue */}
-        <aside className={cn('min-w-0 space-y-4', Boolean(selectedId) && 'hidden lg:block')}>
-          <div className="grid grid-cols-4 gap-1 rounded-xl bg-gray-100 p-1" role="tablist" aria-label="Status">
+        <aside
+          className={cn(
+            'min-w-0 flex flex-col gap-3',
+            'lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)]',
+            Boolean(selectedId) && 'hidden lg:flex',
+          )}
+        >
+          <div className="shrink-0 grid grid-cols-4 gap-1 rounded-xl bg-gray-100 p-1" role="tablist" aria-label="Status">
             {STATUS_TABS.map((t) => {
               const n = t.value === 'ALL' ? undefined : counts?.[t.value]
               const active = status === t.value
@@ -144,7 +192,7 @@ export function FlagsPage() {
             })}
           </div>
 
-          <div className="flex flex-wrap gap-1.5" aria-label="Flag type">
+          <div className="shrink-0 flex flex-wrap gap-1.5" aria-label="Flag type">
             <TypeChip active={!type} onClick={() => setFilter('type', undefined)}>
               All types
             </TypeChip>
@@ -160,7 +208,7 @@ export function FlagsPage() {
           </div>
 
           {list.loading && !list.data ? (
-            <div className="space-y-2">
+            <div className="space-y-2 py-1">
               {[0, 1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-[88px] rounded-xl" />
               ))}
@@ -178,7 +226,28 @@ export function FlagsPage() {
               />
             </Section>
           ) : (
-            <FlagQueue flags={items} selectedId={selectedId} search={search} />
+            <>
+              {/* Separate scrolling bar for flag cards queue */}
+              <div
+                tabIndex={0}
+                aria-label="Flag cards queue"
+                className="custom-scrollbar min-h-0 flex-1 overflow-y-auto space-y-2 pr-1.5 py-0.5 max-h-[calc(100vh-320px)] focus:outline-none focus-visible:ring-1 focus-visible:ring-marigold-400 rounded-lg"
+              >
+                <FlagQueue flags={pagedItems} selectedId={selectedId} search={search} />
+              </div>
+
+              {/* Pagination controls */}
+              <div className="shrink-0 pt-1">
+                <FlagQueuePagination
+                  page={currentPage}
+                  pages={totalPages}
+                  total={total}
+                  size={sizeParam}
+                  onPageChange={handlePageChange}
+                  onSizeChange={handleSizeChange}
+                />
+              </div>
+            </>
           )}
         </aside>
 

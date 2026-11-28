@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import type { FlagRead } from '@/api/types'
 import { FLAG_TYPES, FlagTypeIcon } from '@/components/common/flags'
@@ -6,12 +7,20 @@ import { formatRelative, formatTime } from '@/lib/format'
 
 /** The list of flags on the left of the review screen, newest first. */
 export function FlagQueue({ flags, selectedId, search }: { flags: FlagRead[]; selectedId?: number; search: string }) {
+  const activeRef = useRef<HTMLLIElement | null>(null)
+
+  useEffect(() => {
+    if (activeRef.current) {
+      activeRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  }, [selectedId])
+
   return (
     <ul className="space-y-2" aria-label="Flags">
       {flags.map((f) => {
         const active = f.id === selectedId
         return (
-          <li key={f.id}>
+          <li key={f.id} ref={active ? activeRef : undefined}>
             <Link
               to={{ pathname: `/flags/${f.id}`, search }}
               aria-current={active ? 'true' : undefined}
