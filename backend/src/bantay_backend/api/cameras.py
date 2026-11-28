@@ -124,6 +124,7 @@ def update_camera(
         setattr(camera, key, value)
     if "enabled" in data and not data["enabled"]:
         camera.status = CameraStatus.DISABLED
+        camera.last_error = None
 
     try:
         db.commit()

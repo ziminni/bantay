@@ -428,14 +428,18 @@ class CameraWorker(threading.Thread):
             with session_scope() as db:
                 camera = db.get(Camera, self.camera_id)
                 if camera is not None:
-                    camera.status = (
-                        CameraStatus.ONLINE if connected else CameraStatus.OFFLINE
-                    )
-                    camera.last_error = error
-                    if connected:
-                        import datetime as dt  # noqa: PLC0415
+                    if not camera.enabled:
+                        camera.status = CameraStatus.DISABLED
+                        camera.last_error = None
+                    else:
+                        camera.status = (
+                            CameraStatus.ONLINE if connected else CameraStatus.OFFLINE
+                        )
+                        camera.last_error = error
+                        if connected:
+                            import datetime as dt  # noqa: PLC0415
 
-                        camera.last_seen_at = dt.datetime.now(dt.UTC)
+                            camera.last_seen_at = dt.datetime.now(dt.UTC)
         except Exception:
             logger.exception("Could not update the status of camera %s.", self.camera_id)
 

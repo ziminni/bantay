@@ -1,7 +1,7 @@
 import { Cctv, Pencil, Plus, Power, PowerOff, ScrollText, Settings2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { listCameras } from '@/api/cameras'
+import { listCameras, updateCamera } from '@/api/cameras'
 import { errorMessage } from '@/api/errors'
 import { deleteLab, getLab, updateLab } from '@/api/labs'
 import type { CameraRead } from '@/api/types'
@@ -30,9 +30,11 @@ export function LabDetailPage() {
   const toast = useToast()
   const [dialog, setDialog] = useState<Dialog>(null)
   const [editingCamera, setEditingCamera] = useState<CameraRead | null>(null)
+  const [turningOffAll, setTurningOffAll] = useState(false)
 
   const lab = useAsync(() => getLab(id), [id])
   const cameras = useAsync(() => listCameras({ lab_id: id }), [id])
+  const enabledCameras = (cameras.data ?? []).filter((c) => c.enabled)
 
   const l = lab.data
   if (lab.loading && !l) return <LoadingState />
@@ -56,6 +58,22 @@ export function LabDetailPage() {
   const openCamera = (camera: CameraRead | null) => {
     setEditingCamera(camera)
     setDialog('camera')
+  }
+
+  const turnOffAllCameras = async () => {
+    if (enabledCameras.length === 0) return
+    setTurningOffAll(true)
+    try {
+      await Promise.all(enabledCameras.map((c) => updateCamera(c.id, { enabled: false })))
+      toast.success(
+        `Turned off ${enabledCameras.length === 1 ? '1 camera' : `all ${enabledCameras.length} cameras`} in ${l.name}.`,
+      )
+      refresh()
+    } catch (err) {
+      toast.error(errorMessage(err))
+    } finally {
+      setTurningOffAll(false)
+    }
   }
 
   return (
@@ -113,9 +131,20 @@ export function LabDetailPage() {
             flush
             actions={
               cameras.data && cameras.data.length > 0 ? (
-                <Button size="sm" onClick={() => openCamera(null)} icon={<Plus />}>
-                  Add camera
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    onClick={turnOffAllCameras}
+                    loading={turningOffAll}
+                    disabled={enabledCameras.length === 0}
+                    icon={<PowerOff />}
+                  >
+                    Turn off all cameras
+                  </Button>
+                  <Button size="sm" onClick={() => openCamera(null)} icon={<Plus />}>
+                    Add camera
+                  </Button>
+                </>
               ) : undefined
             }
           >
