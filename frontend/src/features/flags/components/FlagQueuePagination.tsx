@@ -26,59 +26,48 @@ export function FlagQueuePagination({
   return (
     <nav
       aria-label="Flag queue pagination"
-      className="flex flex-col gap-2 rounded-xl border border-gray-200/80 bg-white p-2.5 shadow-card"
+      className="flex items-center justify-between gap-2 rounded-xl border border-gray-200/80 bg-white px-2.5 py-1.5 text-xs text-gray-500 shadow-card"
     >
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>
-          <span className="font-semibold text-navy-900">{from}</span>–
-          <span className="font-semibold text-navy-900">{to}</span> of{' '}
-          <span className="font-semibold text-navy-900">{total}</span> flags
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => onPageChange(page - 1)}
+        disabled={page <= 1}
+        aria-label="Previous page"
+        className="h-7 px-2 text-xs"
+        icon={<ChevronLeft className="size-3.5" />}
+      >
+        <span>Prev</span>
+      </Button>
+
+      <div className="flex items-center gap-2">
+        <span className="tabular-nums">
+          <span className="font-semibold text-navy-900">{from}–{to}</span> of{' '}
+          <span className="font-semibold text-navy-900">{total}</span>
         </span>
-        <label className="flex items-center gap-1.5 text-[11px]">
-          <span className="text-gray-400">Per page:</span>
-          <select
-            value={size}
-            aria-label="Flags per page"
-            onChange={(e) => onSizeChange(Number(e.target.value))}
-            className="h-6 cursor-pointer rounded border border-gray-200 bg-white px-1.5 text-xs font-medium text-navy-900 shadow-card hover:border-gray-300"
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-        </label>
+        <select
+          value={size}
+          aria-label="Flags per page"
+          onChange={(e) => onSizeChange(Number(e.target.value))}
+          className="h-6 cursor-pointer rounded border border-gray-200 bg-white px-1 text-[11px] font-medium text-navy-900 hover:border-gray-300"
+        >
+          <option value={10}>10 / page</option>
+          <option value={20}>20 / page</option>
+          <option value={50}>50 / page</option>
+        </select>
       </div>
 
-      <div className="flex items-center justify-between border-t border-gray-100 pt-1.5">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => onPageChange(page - 1)}
-          disabled={page <= 1}
-          aria-label="Previous page"
-          className="h-7 px-2 text-xs"
-          icon={<ChevronLeft className="size-3.5" />}
-        >
-          <span>Prev</span>
-        </Button>
-
-        <span className="font-mono text-xs tabular-nums text-gray-600">
-          Page <span className="font-semibold text-navy-900">{page}</span> of{' '}
-          <span className="font-semibold text-navy-900">{pages}</span>
-        </span>
-
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => onPageChange(page + 1)}
-          disabled={page >= pages}
-          aria-label="Next page"
-          className="h-7 px-2 text-xs"
-        >
-          <span>Next</span>
-          <ChevronRight className="size-3.5" />
-        </Button>
-      </div>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => onPageChange(page + 1)}
+        disabled={page >= pages}
+        aria-label="Next page"
+        className="h-7 px-2 text-xs"
+      >
+        <span>Next</span>
+        <ChevronRight className="size-3.5" />
+      </Button>
     </nav>
   )
 }

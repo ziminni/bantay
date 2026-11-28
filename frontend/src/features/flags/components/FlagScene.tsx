@@ -1,5 +1,5 @@
-import { ChevronLeft, ChevronRight, Images, Pause, Play, ScanFace } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ChevronLeft, ChevronRight, Pause, Play, ScanFace } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import { snapshotUrl } from '@/api/entries'
 import type { FlagRead } from '@/api/types'
 import { cn } from '@/lib/cn'
@@ -121,11 +121,8 @@ function Figure({ flag, t, ghost = false, firing }: { flag: FlagRead; t: number;
 }
 
 /**
- * The evidence viewer: snapshot or 6-second clip, with zones, the tracked
- * person's pose and the moment the rule fired marked on the timeline.
- *
- * Until the backend stores real snapshots and clips, the scene is drawn from
- * the flag's evidence so reviewers can learn the screen.
+ * The evidence viewer: snapshot picture (with carousel when multiple frames
+ * were clustered) or 6-second clip with zones and tracked pose.
  */
 export function FlagScene({ flag }: { flag: FlagRead }) {
   const snapshots: string[] =
@@ -135,11 +132,21 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
         ? [flag.snapshot_path]
         : []
   const [photoIdx, setPhotoIdx] = useState(0)
+  const [mode, setMode] = useState<'snapshot' | 'clip'>('snapshot')
+  const [t, setT] = useState(flag.trigger_offset)
+  const [playing, setPlaying] = useState(false)
+
   const currentIdx = Math.min(photoIdx, Math.max(0, snapshots.length - 1))
   const currentSnapshot = snapshots[currentIdx]
 
-  const prevPhoto = () => setPhotoIdx((i) => (i > 0 ? i - 1 : snapshots.length - 1))
-  const nextPhoto = () => setPhotoIdx((i) => (i < snapshots.length - 1 ? i + 1 : 0))
+  const prevPhoto = useCallback(
+    () => setPhotoIdx((i) => (i > 0 ? i - 1 : snapshots.length - 1)),
+    [snapshots.length],
+  )
+  const nextPhoto = useCallback(
+    () => setPhotoIdx((i) => (i < snapshots.length - 1 ? i + 1 : 0)),
+    [snapshots.length],
+  )
 
   useEffect(() => {
     if (flag.type !== 'UNKNOWN_PERSON' || snapshots.length <= 1) return
@@ -150,115 +157,7 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [snapshots.length])
-
-  // Unknown person incidents: display the photo carousel with left/right navigation
-  if (flag.type === 'UNKNOWN_PERSON') {
-    return (
-      <div className="overflow-hidden rounded-2xl bg-navy-950 shadow-raised ring-1 ring-navy-900">
-        <div className="relative aspect-video w-full overflow-hidden bg-black flex items-center justify-center">
-          {currentSnapshot ? (
-            <img
-              key={currentSnapshot}
-              src={snapshotUrl(currentSnapshot)}
-              alt={`Snapshot of unknown face for flag #${flag.id} (photo ${currentIdx + 1} of ${snapshots.length})`}
-              className="h-full w-full object-contain select-none animate-fade-in"
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-3 p-8 text-center text-navy-400">
-              <div className="flex size-16 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10">
-                <ScanFace className="size-8 stroke-[1.5] text-marigold-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-cream">Snapshot picture</p>
-                <p className="text-xs text-navy-300">Face snapshot captured at entrance camera.</p>
-              </div>
-            </div>
-          )}
-
-          {/* Left / Right Carousel Navigation Buttons */}
-          {snapshots.length > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={prevPhoto}
-                aria-label="Previous photo (Left arrow)"
-                title="Previous photo (←)"
-                className="absolute left-3 top-1/2 -translate-y-1/2 flex size-10 items-center justify-center rounded-full bg-black/60 text-white shadow-lg backdrop-blur-md transition-all hover:bg-black/90 hover:scale-110 active:scale-95 cursor-pointer z-10"
-              >
-                <ChevronLeft className="size-6" />
-              </button>
-              <button
-                type="button"
-                onClick={nextPhoto}
-                aria-label="Next photo (Right arrow)"
-                title="Next photo (→)"
-                className="absolute right-3 top-1/2 -translate-y-1/2 flex size-10 items-center justify-center rounded-full bg-black/60 text-white shadow-lg backdrop-blur-md transition-all hover:bg-black/90 hover:scale-110 active:scale-95 cursor-pointer z-10"
-              >
-                <ChevronRight className="size-6" />
-              </button>
-
-              {/* Dot Indicators */}
-              <div className="pointer-events-none absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5 z-10">
-                {snapshots.map((_, i) => (
-                  <span
-                    key={i}
-                    className={cn(
-                      'size-2 rounded-full transition-all duration-200',
-                      i === currentIdx ? 'w-5 bg-marigold-400' : 'bg-white/40',
-                    )}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Camera overlay burn-in */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 font-mono text-[11px] text-cream/90 z-10">
-            <span className="rounded bg-black/60 px-2.5 py-1 backdrop-blur-sm">
-              {(flag.camera_name ?? 'Entrance Camera').toUpperCase()} · {flag.lab_name} · SNAPSHOT
-            </span>
-            <span className="flex items-center gap-2">
-              {snapshots.length > 1 && (
-                <span className="flex items-center gap-1.5 rounded bg-black/60 px-2.5 py-1 backdrop-blur-sm text-cream font-mono">
-                  <Images className="size-3.5 text-marigold-400" />
-                  Photo {currentIdx + 1} of {snapshots.length}
-                </span>
-              )}
-              <span className="flex items-center gap-1.5 rounded bg-marigold-400 px-2 py-1 font-sans font-semibold text-navy-950">
-                <span className="size-1.5 animate-ping rounded-full bg-navy-950" />
-                UNKNOWN FACE DETECTED
-              </span>
-              <span className="rounded bg-black/60 px-2.5 py-1 backdrop-blur-sm">{formatDateTime(flag.occurred_at)}</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Caption footer */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 px-4 py-3 text-xs text-navy-200">
-          <span className="flex items-center gap-2 font-mono">
-            <span className="rounded bg-marigold-400/15 px-2 py-0.5 font-semibold text-marigold-400">
-              SNAPSHOT PIC {snapshots.length > 1 ? `(${currentIdx + 1}/${snapshots.length})` : ''}
-            </span>
-            <span>
-              Best similarity: {Math.round(flag.evidence.value * 100)}% (threshold: {Math.round(flag.evidence.threshold * 100)}%)
-            </span>
-          </span>
-          {snapshots.length > 1 ? (
-            <span className="text-gray-400 text-[11px]">
-              Click <kbd className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-cream">&lt;</kbd> <kbd className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-cream">&gt;</kbd> or use arrow keys to flip photos
-            </span>
-          ) : (
-            <span className="text-gray-400">{formatDateTime(flag.occurred_at)}</span>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  const [mode, setMode] = useState<'snapshot' | 'clip'>('snapshot')
-  const [t, setT] = useState(flag.trigger_offset)
-  const [playing, setPlaying] = useState(false)
+  }, [flag.type, snapshots.length, prevPhoto, nextPhoto])
 
   useEffect(() => {
     if (!playing) return
@@ -274,6 +173,85 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
     }, 100)
     return () => clearInterval(timer)
   }, [playing])
+
+  // Unknown person incidents: display snapshot picture matching the clean CCTV frame design
+  if (flag.type === 'UNKNOWN_PERSON') {
+    return (
+      <div className="overflow-hidden rounded-2xl bg-navy-950 shadow-raised ring-1 ring-navy-900">
+        <div className="group relative aspect-video w-full overflow-hidden bg-black flex items-center justify-center">
+          {currentSnapshot ? (
+            <img
+              key={currentSnapshot}
+              src={snapshotUrl(currentSnapshot)}
+              alt={`Snapshot of unknown face for flag #${flag.id}`}
+              className="h-full w-full object-cover select-none"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 p-8 text-center text-navy-400">
+              <div className="flex size-16 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10">
+                <ScanFace className="size-8 stroke-[1.5] text-marigold-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-cream">Snapshot picture</p>
+                <p className="text-xs text-navy-300">Face snapshot captured at entrance camera.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Left / Right Carousel Navigation Buttons (when multiple snapshots exist) */}
+          {snapshots.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={prevPhoto}
+                aria-label="Previous photo"
+                title="Previous photo (←)"
+                className="absolute left-3 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full bg-black/55 text-white opacity-75 shadow backdrop-blur-sm transition-opacity hover:bg-black/80 hover:opacity-100 z-10"
+              >
+                <ChevronLeft className="size-5" />
+              </button>
+              <button
+                type="button"
+                onClick={nextPhoto}
+                aria-label="Next photo"
+                title="Next photo (→)"
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full bg-black/55 text-white opacity-75 shadow backdrop-blur-sm transition-opacity hover:bg-black/80 hover:opacity-100 z-10"
+              >
+                <ChevronRight className="size-5" />
+              </button>
+              <span className="pointer-events-none absolute bottom-3 right-3 rounded bg-black/60 px-2 py-0.5 font-mono text-[11px] text-cream/90 backdrop-blur-sm z-10">
+                {currentIdx + 1} / {snapshots.length}
+              </span>
+            </>
+          )}
+
+          {/* Camera overlay burn-in */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 font-mono text-[11px] text-cream/90 z-10">
+            <span className="rounded bg-black/60 px-2.5 py-1 backdrop-blur-sm">
+              {(flag.camera_name ?? 'Entrance Camera').toUpperCase()} · {flag.lab_name} · SNAPSHOT
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="rounded bg-marigold-400 px-2.5 py-1 font-sans font-semibold text-navy-950">
+                UNKNOWN FACE DETECTED
+              </span>
+              <span className="rounded bg-black/60 px-2.5 py-1 backdrop-blur-sm">{formatDateTime(flag.occurred_at)}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Caption footer */}
+        <div className="flex items-center justify-between border-t border-white/10 px-4 py-3 text-xs text-navy-200">
+          <span className="flex items-center gap-2 font-mono">
+            <span className="rounded bg-marigold-400/15 px-2 py-0.5 font-semibold text-marigold-400">SNAPSHOT PIC</span>
+            <span>
+              Best similarity: {Math.round(flag.evidence.value * 100)}% (threshold: {Math.round(flag.evidence.threshold * 100)}%)
+            </span>
+          </span>
+          <span className="text-gray-400">{formatDateTime(flag.occurred_at)}</span>
+        </div>
+      </div>
+    )
+  }
 
   const shownT = mode === 'snapshot' ? flag.trigger_offset : t
   const firing = shownT >= flag.trigger_offset && shownT <= flag.trigger_offset + 1.6
@@ -326,7 +304,6 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
             )
           })}
 
-          {/* Motion trail for movement rules. */}
           {(flag.type === 'RUNNING' || flag.type === 'EQUIPMENT_REMOVAL') &&
             [0.9, 0.6, 0.3].map((d) => shownT - d >= 0 && <Figure key={d} flag={flag} t={shownT - d} ghost firing={false} />)}
           <Figure flag={flag} t={shownT} firing={firing} />
@@ -334,7 +311,6 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
           <rect width={W} height={H} fill="url(#vignette)" pointerEvents="none" />
         </svg>
 
-        {/* Camera overlay, like a CCTV burn-in. */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 font-mono text-[11px] text-cream/90">
           <span className="rounded bg-black/40 px-2 py-1 backdrop-blur-sm">
             {(flag.camera_name ?? 'Camera').toUpperCase()} · {flag.lab_name} · 5 FPS
@@ -351,7 +327,6 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
         </div>
       </div>
 
-      {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 border-t border-white/10 px-3 py-2.5">
         <div className="flex rounded-lg bg-white/5 p-0.5 ring-1 ring-white/10" role="tablist" aria-label="Evidence">
           {(['snapshot', 'clip'] as const).map((m) => (
@@ -399,7 +374,6 @@ export function FlagScene({ flag }: { flag: FlagRead }) {
             aria-label="Clip position"
             className="w-full accent-marigold-400"
           />
-          {/* Where the rule fired. */}
           <span
             aria-hidden
             title="Rule fired here"

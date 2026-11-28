@@ -1,4 +1,4 @@
-import { ArrowLeft, Flag, FlaskConical } from 'lucide-react'
+import { ArrowLeft, Flag } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getFlag, listFlags, subscribeFlags } from '@/api/flags'
@@ -71,7 +71,7 @@ export function FlagsPage() {
     if (!selectedId && items.length > 0 && isDesktop()) navigate(`/flags/${items[0].id}${search}`, { replace: true })
   }, [selectedId, items, navigate, search])
 
-  // When selectedId is on another page, automatically navigate to that page so the card is visible in the queue
+  // Keep pagination synced with the selected flag when navigating via J/K or direct link.
   useEffect(() => {
     if (!selectedId || items.length === 0) return
     const idx = items.findIndex((f) => f.id === selectedId)
@@ -104,7 +104,7 @@ export function FlagsPage() {
   /** After a decision, move on to the next flag still waiting. */
   const onReviewed = (updated: FlagRead) => {
     if (status === 'ALL' || updated.status === status) return
-    const idx = items.findIndex((f) => f.id === updated.id)
+    const idx = items.findIndex((f) => f.id !== undefined && f.id === updated.id)
     const rest = items.filter((f) => f.id !== updated.id)
     const next = rest[Math.min(idx, rest.length - 1)]
     navigate(next ? `/flags/${next.id}${search}` : `/flags${search}`, { replace: true })
@@ -115,7 +115,6 @@ export function FlagsPage() {
     if (value) next.set(key, value)
     else next.delete(key)
     next.delete('page')
-    // Changing the filter closes the open flag; the first match opens instead.
     navigate({ pathname: '/flags', search: next.toString() ? `?${next.toString()}` : '' }, { replace: true })
   }
 
@@ -153,17 +152,12 @@ export function FlagsPage() {
         }
       />
 
-      <p className="-mt-5 mb-6 flex items-center gap-2 text-xs text-marigold-800">
-        <FlaskConical className="size-3.5" aria-hidden />
-        Sample flags in your real labs: the behaviour worker is not running yet. Persons inside come from the real entry log.
-      </p>
-
-      <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
         {/* Queue */}
         <aside
           className={cn(
-            'min-w-0 flex flex-col gap-3',
-            'lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)]',
+            'min-w-0 flex flex-col gap-4',
+            'lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-7rem)]',
             Boolean(selectedId) && 'hidden lg:flex',
           )}
         >
@@ -208,7 +202,7 @@ export function FlagsPage() {
           </div>
 
           {list.loading && !list.data ? (
-            <div className="space-y-2 py-1">
+            <div className="space-y-2.5">
               {[0, 1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-[88px] rounded-xl" />
               ))}
@@ -227,26 +221,28 @@ export function FlagsPage() {
             </Section>
           ) : (
             <>
-              {/* Separate scrolling bar for flag cards queue */}
+              {/* Independent scrollable flag cards list */}
               <div
                 tabIndex={0}
                 aria-label="Flag cards queue"
-                className="custom-scrollbar min-h-0 flex-1 overflow-y-auto space-y-2 pr-1.5 py-0.5 max-h-[calc(100vh-320px)] focus:outline-none focus-visible:ring-1 focus-visible:ring-marigold-400 rounded-lg"
+                className="custom-scrollbar min-h-0 flex-1 overflow-y-auto pr-1 py-0.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-marigold-400 rounded-xl"
               >
                 <FlagQueue flags={pagedItems} selectedId={selectedId} search={search} />
               </div>
 
               {/* Pagination controls */}
-              <div className="shrink-0 pt-1">
-                <FlagQueuePagination
-                  page={currentPage}
-                  pages={totalPages}
-                  total={total}
-                  size={sizeParam}
-                  onPageChange={handlePageChange}
-                  onSizeChange={handleSizeChange}
-                />
-              </div>
+              {total > sizeParam || totalPages > 1 ? (
+                <div className="shrink-0">
+                  <FlagQueuePagination
+                    page={currentPage}
+                    pages={totalPages}
+                    total={total}
+                    size={sizeParam}
+                    onPageChange={handlePageChange}
+                    onSizeChange={handleSizeChange}
+                  />
+                </div>
+              ) : null}
             </>
           )}
         </aside>
